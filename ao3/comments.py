@@ -1,4 +1,3 @@
-
 """
 Class to represent an ao3 comment.
 
@@ -7,6 +6,11 @@ These can be part of a comment tree - and can either be attatched to a work enti
 
 from functools import cached_property
 
+from typing import Optional, Union, Iterator
+
+
+import bs4
+import requests.models
 from bs4 import BeautifulSoup
 
 from ao3 import threadable, utils
@@ -14,15 +18,21 @@ from ao3.requester import requester
 from ao3.users import User
 
 from ao3.api.comment_api import CommentAPI
+from ao3.api.object_api import BaseObjectAPI
 
 
-class Comment(CommentAPI):
+class Comment(CommentAPI, BaseObjectAPI):
     """
     AO3 comment object
     """
 
     def __init__(
-        self, comment_id, parent=None, parent_comment=None, session=None, load=True
+        self,
+        comment_id: Union[str, int],
+        parent: Optional[Union["Work", "Chapter"]] = None,
+        parent_comment: Optional["Comment"] = None,
+        session: Optional["Session"] = None,
+        load: bool = True,
     ):
         """Creates a new AO3 comment object
 
@@ -44,11 +54,21 @@ class Comment(CommentAPI):
         if load:
             self.reload()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """
+        String rep of the class.
+
+        :return:
+        """
         return f"<Comment [{self.id}] on [{self.parent}]>"
 
     @property
-    def _soup(self):
+    def _soup(self) -> Optional[BeautifulSoup]:
+        """
+        Return the soup containing this comment.
+
+        :return:
+        """
         if self.__soup is None:
             if self.parent_comment is None:
                 return None
@@ -56,14 +76,24 @@ class Comment(CommentAPI):
         return self.__soup
 
     @property
-    def first_parent_comment(self):
+    def first_parent_comment(self) -> "Comment":
+        """
+        Return the first parent of this comment tree (which might be this comment).
+
+        :return:
+        """
         if self.parent_comment is None:
             return self
         else:
             return self.parent_comment.first_parent_comment
 
     @property
-    def fullwork(self):
+    def fullwork(self) -> Optional[bool]:
+        """
+        Check to see if this comment is on the full work.
+
+        :return:
+        """
         from .works import Work
 
         if self.parent is None:
@@ -71,8 +101,8 @@ class Comment(CommentAPI):
         return isinstance(self.parent, Work)
 
     @cached_property
-    def author(self):
-        """Comment author"""
+    def author(self) -> Optional["User"]:
+        """Comment author."""
         li = self._soup.find("li", {"id": f"comment_{self.id}"})
         header = li.find("h4", {"class": ("heading", "byline")})
         if header is None:
@@ -82,8 +112,8 @@ class Comment(CommentAPI):
         return author
 
     @cached_property
-    def text(self):
-        """Comment text"""
+    def text(self) -> str:
+        """Comment text."""
         li = self._soup.find("li", {"id": f"comment_{self.id}"})
         if li.blockquote is not None:
             text = li.blockquote.getText()
@@ -91,7 +121,7 @@ class Comment(CommentAPI):
             text = ""
         return text
 
-    def get_thread(self):
+    def get_thread(self) -> list["Comment"]:
         """Returns all the replies to this comment, and all subsequent replies recursively.
         Also loads any parent comments this comment might have.
 
@@ -134,7 +164,18 @@ class Comment(CommentAPI):
                 self._thread = []
             return self._thread
 
-    def _get_thread(self, parent, soup):
+    def _get_thread(
+        self,
+        parent: Optional["Comment"],
+        soup: Optional[Union[bs4.PageElement, bs4.Tag, bs4.NavigableString]],
+    ) -> None:
+        """
+        Setup the thread this comment is part of.
+
+        :param parent:
+        :param soup:
+        :return:
+        """
         comments = soup.findAll("li", recursive=False)
         l = [self] if parent is None else []
         for comment in comments:
@@ -173,7 +214,7 @@ class Comment(CommentAPI):
         if parent is not None:
             parent._thread = l
 
-    def get_thread_iterator(self):
+    def get_thread_iterator(self) -> Iterator["Comment"]:
         """Returns a generator that allows you to iterate through the entire thread
 
         Returns:
@@ -183,7 +224,9 @@ class Comment(CommentAPI):
         return threadIterator(self)
 
     @threadable.threadable
-    def reply(self, comment_text, email="", name=""):
+    def reply(
+        self, comment_text: str, email: str = "", name: str = ""
+    ) -> requests.models.Response:
         """Replies to a comment.
         This function is threadable.
 
@@ -217,11 +260,13 @@ class Comment(CommentAPI):
         )
 
     @threadable.threadable
-    def reload(self):
-        """Loads all comment properties
+    def reload(self) -> None:
+        """Loads all comment properties.
+
         This function is threadable.
+
+        :return None: All changes are to the internal cache
         """
-        from .works import Work
 
         for attr in self.__class__.__dict__:
             if isinstance(getattr(self.__class__, attr), cached_property):
@@ -253,7 +298,7 @@ class Comment(CommentAPI):
         self.parent_comment = None
 
     @threadable.threadable
-    def delete(self):
+    def delete(self) -> None:
         """Deletes this comment.
         This function is threadable.
 
@@ -265,23 +310,14 @@ class Comment(CommentAPI):
 
         utils.delete_comment(self, self._session)
 
-    def get(self, *args, **kwargs):
-        """Request a web page and return a Response object"""
 
-        if self._session is None:
-            req = requester.request("get", *args, **kwargs)
-        else:
-            req = requester.request(
-                "get", *args, **kwargs, session=self._session.session
-            )
-        if req.status_code == 429:
-            raise utils.HTTPError(
-                "We are being rate-limited. Try again in a while or reduce the number of requests"
-            )
-        return req
+def threadIterator(comment: Comment) -> Iterator[Comment]:
+    """
+    Iterate over the thread a given comment is in.
 
-
-def threadIterator(comment):
+    :param comment:
+    :return:
+    """
     if comment.get_thread() is None or len(comment.get_thread()) == 0:
         yield comment
     else:

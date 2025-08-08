@@ -1,3 +1,10 @@
+
+"""
+Represents a series of works on the archive.
+"""
+
+from typing import Optional, Any
+
 from datetime import date
 from functools import cached_property
 
@@ -8,10 +15,17 @@ from ao3.common import get_work_from_banner
 from ao3.requester import requester
 from ao3.users import User
 from ao3.works import Work
+from ao3.api.object_api import BaseObjectAPI
 
 
-class Series:
-    def __init__(self, seriesid, session=None, load=True):
+class Series(BaseObjectAPI):
+    """
+    Represent a series on the archive.
+    """
+
+    id: int
+
+    def __init__(self, seriesid: int, session: Optional["Session"] = None, load: Optional[bool] = True):
         """Creates a new series object
 
         Args:
@@ -29,16 +43,32 @@ class Series:
         if load:
             self.reload()
 
-    def __eq__(self, other):
-        return isinstance(other, __class__) and other.id == self.id
+    def __eq__(self, other: "Series") -> bool:
+        """
+        Checks the other
 
-    def __repr__(self):
+        :param other:
+        :return:
+        """
+        return isinstance(other, self.__class__) and other.id == self.id
+
+    def __repr__(self) -> str:
+        """
+        Str rep of the class.
+
+        :return:
+        """
         try:
             return f"<Series [{self.name}]>"
-        except:
-            return f"<Series [{self.id}]>"
+        except Exception as e:
+            return f"<Series [{self.id}] - [{e}]>"
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict[str, Any]:
+        """
+        Return the current state of the class.
+
+        :return:
+        """
         d = {}
         for attr in self.__dict__:
             if isinstance(self.__dict__[attr], BeautifulSoup):
@@ -47,7 +77,13 @@ class Series:
                 d[attr] = (self.__dict__[attr], False)
         return d
 
-    def __setstate__(self, d):
+    def __setstate__(self, d: dict[str, Any]):
+        """
+        Write the saved state back out to itself.
+
+        :param d:
+        :return:
+        """
         for attr in d:
             value, issoup = d[attr]
             if issoup:
@@ -55,7 +91,7 @@ class Series:
             else:
                 self.__dict__[attr] = value
 
-    def set_session(self, session):
+    def set_session(self, session: "Session") -> None:
         """Sets the session used to make requests for this series
 
         Args:
@@ -65,9 +101,10 @@ class Series:
         self._session = session
 
     @threadable.threadable
-    def reload(self):
+    def reload(self) -> None:
         """
         Loads information about this series.
+
         This function is threadable.
         """
 
@@ -81,8 +118,9 @@ class Series:
             raise utils.InvalidIdError("Cannot find series")
 
     @threadable.threadable
-    def subscribe(self):
+    def subscribe(self) -> None:
         """Subscribes to this series.
+
         This function is threadable.
 
         Raises:
@@ -97,8 +135,9 @@ class Series:
         utils.subscribe(self, "Series", self._session)
 
     @threadable.threadable
-    def unsubscribe(self):
+    def unsubscribe(self) -> None:
         """Unubscribes from this series.
+
         This function is threadable.
 
         Raises:
@@ -117,14 +156,15 @@ class Series:
     @threadable.threadable
     def bookmark(
         self,
-        notes="",
-        tags=None,
-        collections=None,
-        private=False,
-        recommend=False,
-        pseud=None,
-    ):
-        """Bookmarks this series
+        notes: Optional[str] = "",
+        tags: Optional[list[str]] = None,
+        collections: Optional[list[str]] = None,
+        private: Optional[bool] = False,
+        recommend: Optional[bool] = False,
+        pseud: Optional[str]=None,
+    ) -> None:
+        """Bookmarks this series.
+
         This function is threadable
 
         Args:
@@ -153,8 +193,9 @@ class Series:
         )
 
     @threadable.threadable
-    def delete_bookmark(self):
-        """Removes a bookmark from this series
+    def delete_bookmark(self) -> None:
+        """Removes a bookmark from this series.
+
         This function is threadable
 
         Raises:
@@ -176,7 +217,12 @@ class Series:
         utils.delete_bookmark(self._bookmarkid, self._session, self.authenticity_token)
 
     @cached_property
-    def _bookmarkid(self):
+    def _bookmarkid(self) -> Optional[int]:
+        """
+        If this series is bookmarked, get the id of that bookmark.
+
+        :return:
+        """
         form_div = self._soup.find("div", {"id": "bookmark-form"})
         if form_div is None:
             return None
@@ -192,8 +238,8 @@ class Series:
         return None
 
     @cached_property
-    def url(self):
-        """Returns the URL to this series
+    def url(self) -> str:
+        """Returns the URL to this series.
 
         Returns:
             str: series URL
@@ -202,13 +248,13 @@ class Series:
         return f"https://archiveofourown.org/series/{self.id}"
 
     @property
-    def loaded(self):
+    def loaded(self) -> bool:
         """Returns True if this series has been loaded"""
         return self._soup is not None
 
     @cached_property
-    def authenticity_token(self):
-        """Token used to take actions that involve this work"""
+    def authenticity_token(self) -> Optional[str]:
+        """Token used to take actions that involve this work."""
 
         if not self.loaded:
             return None
@@ -217,7 +263,7 @@ class Series:
         return token["content"]
 
     @cached_property
-    def is_subscribed(self):
+    def is_subscribed(self) -> bool:
         """True if you're subscribed to this series"""
 
         if self._session is None or not self._session.is_authed:
@@ -230,8 +276,14 @@ class Series:
         return input_ is not None
 
     @cached_property
-    def _sub_id(self):
-        """Returns the subscription ID. Used for unsubscribing"""
+    def _sub_id(self) -> int:
+        """Returns the subscription ID. Used for unsubscribing.
+
+
+        Raises:
+            :exception If you are not subscribed to this series
+
+        """
 
         if not self.is_subscribed:
             raise Exception("You are not subscribed to this series")
@@ -241,12 +293,22 @@ class Series:
         return int(id_)
 
     @cached_property
-    def name(self):
+    def name(self) -> str:
+        """
+        Return the series name as a string.
+
+        :return:
+        """
         div = self._soup.find("div", {"class": "series-show region"})
         return div.h2.getText().replace("\t", "").replace("\n", "")
 
     @cached_property
-    def creators(self):
+    def creators(self) -> list[User]:
+        """
+        Return the creators of the series.
+
+        :return:
+        """
         dl = self._soup.find("dl", {"class": "series meta group"})
         return [
             User(author.getText(), load=False)
@@ -254,55 +316,94 @@ class Series:
         ]
 
     @cached_property
-    def series_begun(self):
+    def series_begun(self) -> date:
+        """
+        Returns a date time object for when the series begun.
+
+        :return:
+        """
         dl = self._soup.find("dl", {"class": "series meta group"})
         info = dl.findAll(("dd", "dt"))
         last_dt = None
+        date_str = None
         for field in info:
             if field.name == "dt":
                 last_dt = field.getText().strip()
             elif last_dt == "Series Begun:":
                 date_str = field.getText().strip()
                 break
+        if date_str is None:
+            raise utils.HTTPError("Couldn't find the date in the HTML.")
         return date(*list(map(int, date_str.split("-"))))
 
     @cached_property
-    def series_updated(self):
+    def series_updated(self) -> date:
+        """
+        Returns a datetime object for when the series last updated.
+
+        :return series_update_date:
+        :raise utils.HTTPError:
+        """
         dl = self._soup.find("dl", {"class": "series meta group"})
         info = dl.findAll(("dd", "dt"))
         last_dt = None
+        date_str = None
         for field in info:
             if field.name == "dt":
                 last_dt = field.getText().strip()
             elif last_dt == "Series Updated:":
                 date_str = field.getText().strip()
                 break
+
+        if date_str is None:
+            raise utils.HTTPError("Couldn't find the date in the HTML.")
+
         return date(*list(map(int, date_str.split("-"))))
 
     @cached_property
-    def words(self):
+    def words(self) -> int:
+        """
+        Find the word count for the series.
+
+        :return:
+        """
         dl = self._soup.find("dl", {"class": "series meta group"})
         stats = dl.find("dl", {"class": "stats"}).findAll(("dd", "dt"))
         last_dt = None
+        words = None
         for field in stats:
             if field.name == "dt":
                 last_dt = field.getText().strip()
             elif last_dt == "Words:":
                 words = field.getText().strip()
                 break
+
+        if words is None:
+            raise utils.HTTPError("Couldn't find the word count in the HTML.")
+
         return int(words.replace(",", ""))
 
     @cached_property
-    def nworks(self):
+    def nworks(self) -> int:
+        """
+        Returns the number of works in the series.
+
+        :return:
+        """
         dl = self._soup.find("dl", {"class": "series meta group"})
         stats = dl.find("dl", {"class": "stats"}).findAll(("dd", "dt"))
         last_dt = None
+        works = None
         for field in stats:
             if field.name == "dt":
                 last_dt = field.getText().strip()
             elif last_dt == "Works:":
                 works = field.getText().strip()
                 break
+
+        if works is None:
+            raise utils.HTTPError("Couldn't find the works count in the HTML.")
+
         return int(works.replace(",", ""))
 
     @cached_property
@@ -310,16 +411,26 @@ class Series:
         dl = self._soup.find("dl", {"class": "series meta group"})
         stats = dl.find("dl", {"class": "stats"}).findAll(("dd", "dt"))
         last_dt = None
+        complete: Optional[str] = None
         for field in stats:
             if field.name == "dt":
                 last_dt = field.getText().strip()
             elif last_dt == "Complete:":
                 complete = field.getText().strip()
                 break
+
+        if complete is None:
+            raise utils.HTTPError("Couldn't find the complete flag in the HTML.")
+
         return True if complete == "Yes" else False
 
     @cached_property
-    def description(self):
+    def description(self) -> str:
+        """
+        Description of the series.
+
+        :return:
+        """
         dl = self._soup.find("dl", {"class": "series meta group"})
         info = dl.findAll(("dd", "dt"))
         last_dt = None
@@ -333,7 +444,12 @@ class Series:
         return desc
 
     @cached_property
-    def notes(self):
+    def notes(self) -> str:
+        """
+        Notes attatched to this series.
+
+        :return:
+        """
         dl = self._soup.find("dl", {"class": "series meta group"})
         info = dl.findAll(("dd", "dt"))
         last_dt = None
@@ -347,7 +463,12 @@ class Series:
         return notes
 
     @cached_property
-    def nbookmarks(self):
+    def nbookmarks(self) -> int:
+        """
+        Bookmark count for this series.
+
+        :return:
+        """
         dl = self._soup.find("dl", {"class": "series meta group"})
         stats = dl.find("dl", {"class": "stats"}).findAll(("dd", "dt"))
         last_dt = None
@@ -361,7 +482,12 @@ class Series:
         return int(book.replace(",", ""))
 
     @cached_property
-    def work_list(self):
+    def work_list(self) -> list[Work]:
+        """
+        List of works in this series.
+
+        :return:
+        """
         ul = self._soup.find("ul", {"class": "series work index group"})
         works = []
         for work in ul.find_all("li", {"role": "article"}):
@@ -383,32 +509,3 @@ class Series:
         #     setattr(new, "authors", authors)
         #     works.append(new)
         return works
-
-    def get(self, *args, **kwargs):
-        """Request a web page and return a Response object"""
-
-        if self._session is None:
-            req = requester.request("get", *args, **kwargs)
-        else:
-            req = requester.request(
-                "get", *args, **kwargs, session=self._session.session
-            )
-        if req.status_code == 429:
-            raise utils.HTTPError(
-                "We are being rate-limited. Try again in a while or reduce the number of requests"
-            )
-        return req
-
-    def request(self, url):
-        """Request a web page and return a BeautifulSoup object.
-
-        Args:
-            url (str): Url to request
-
-        Returns:
-            bs4.BeautifulSoup: BeautifulSoup object representing the requested page's html
-        """
-
-        req = self.get(url)
-        soup = BeautifulSoup(req.content, "lxml")
-        return soup

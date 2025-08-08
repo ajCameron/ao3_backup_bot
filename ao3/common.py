@@ -1,20 +1,42 @@
+"""
+Common tools, centralised here.
+"""
+
+from typing import Any, Union
+
+import bs4
 import datetime
 
 import utils as utils
 
 
-def __setifnotnone(obj, attr, value):
+def __setifnotnone(obj: Any, attr: str, value: Any) -> None:
+    """
+    Convenience method to set an attr if it's not none.
+
+    :param obj:
+    :param attr:
+    :param value:
+    :return:
+    """
     if value is not None:
         setattr(obj, attr, value)
 
 
-def get_work_from_banner(work):
+def get_work_from_banner(work: Union[bs4.PageElement, bs4.Tag, bs4.NavigableString, bs4.ResultSet]) -> "Work":
+    """
+    Take the opening banner of a page and render the work from it.
+
+    :param work:
+    :return:
+    """
     # * These imports need to be here to prevent circular imports
     # * (series.py would requite common.py and vice-versa)
     from .series import Series
     from .users import User
     from .works import Work
 
+    workid = None
     authors = []
     try:
         for a in work.h4.find_all("a"):
@@ -26,6 +48,8 @@ def get_work_from_banner(work):
                 workid = utils.workid_from_url(a["href"])
     except AttributeError:
         pass
+
+    assert workid is not None, "Cannot find workid - cannot load."
 
     new = Work(workid, load=False)
 
@@ -174,7 +198,14 @@ def get_work_from_banner(work):
     return new
 
 
-def url_join(base, *args):
+def url_join(base: str, *args: tuple[str]) -> str:
+    """
+    Join tokens onto a url.
+
+    :param base:
+    :param args:
+    :return:
+    """
     result = base
     for arg in args:
         if len(result) > 0 and not result[-1] == "/":

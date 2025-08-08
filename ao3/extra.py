@@ -1,3 +1,7 @@
+"""
+Not entirely sure why this is different from "common" but we live in this world now.
+"""
+
 import functools
 import os
 import pathlib
@@ -9,7 +13,12 @@ from ao3 import threadable, utils
 from ao3.requester import requester
 
 
-def _download_languages():
+def _download_languages() -> None:
+    """
+    Download the know languages file from ao3.
+
+    :return:
+    """
     path = os.path.dirname(__file__)
     languages = []
     try:
@@ -38,7 +47,14 @@ def _download_languages():
     print(f"Download complete ({len(languages)} languages)")
 
 
-def _download_fandom(fandom_key, name):
+def _download_fandom(fandom_key: str, name: str) -> None:
+    """
+    Download a fandom to a local pkl file.
+
+    :param fandom_key: The name of the fandom on ao3?
+    :param name: The name of the file to be downloaded to?
+    :return:
+    """
     path = os.path.dirname(__file__)
     fandoms = []
     try:
@@ -109,8 +125,10 @@ _RESOURCE_DICTS = [("fandoms", _FANDOM_RESOURCES), ("languages", _LANGUAGE_RESOU
 
 
 @threadable.threadable
-def download(resource):
-    """Downloads the specified resource.
+def download(resource: str) -> None:
+    """
+    Downloads the specified resource.
+
     This function is threadable.
 
     Args:
@@ -127,8 +145,8 @@ def download(resource):
     raise KeyError(f"'{resource}' is not a valid resource")
 
 
-def get_resources():
-    """Returns a list of every resource available for download"""
+def get_resources() -> dict[str, list[str]]:
+    """Returns a list of every resource available for download."""
 
     d = {}
     for name, resource_dict in _RESOURCE_DICTS:
@@ -136,15 +154,16 @@ def get_resources():
     return d
 
 
-def has_resource(resource):
+def has_resource(resource: str) -> bool:
     """Returns True if resource was already download, False otherwise"""
     path = os.path.join(os.path.dirname(__file__), "resources")
     return len(list(pathlib.Path(path).rglob(resource + ".pkl"))) > 0
 
 
 @threadable.threadable
-def download_all(redownload=False):
+def download_all(redownload: bool = False) -> None:
     """Downloads every available resource.
+
     This function is threadable."""
 
     types = get_resources()
@@ -155,8 +174,10 @@ def download_all(redownload=False):
 
 
 @threadable.threadable
-def download_all_threaded(redownload=False):
-    """Downloads every available resource in parallel (about ~3.7x faster).
+def download_all_threaded(redownload: bool = False) -> None:
+    """
+    Downloads every available resource in parallel (about ~3.7x faster).
+
     This function is threadable."""
 
     threads = []

@@ -1,4 +1,3 @@
-
 """
 Represents an individual chapter inside a larger work.
 """
@@ -26,8 +25,9 @@ class Chapter(BaseObjectAPI):
     _session: Optional["Session"]
     _work: "Work"
 
-
-    def __init__(self, chapterid: int, work: "Work", session: "Session" = None, load: bool = True) -> None:
+    def __init__(
+        self, chapterid: int, work: "Work", session: "Session" = None, load: bool = True
+    ) -> None:
         """
         Initialise the chapter.
 
@@ -133,7 +133,13 @@ class Chapter(BaseObjectAPI):
                 self._soup = chapter._soup
 
     @threadable.threadable
-    def comment(self, comment_text: str, email: str = "", name: str = "", pseud: Optional[str] = None):
+    def comment(
+        self,
+        comment_text: str,
+        email: str = "",
+        name: str = "",
+        pseud: Optional[str] = None,
+    ):
         """Leaves a comment on this chapter.
 
         This function is threadable.
@@ -363,4 +369,3 @@ class Chapter(BaseObjectAPI):
         """
 
         return f"https://archiveofourown.org/works/{self._work.id}/chapters/{self.id}"
-

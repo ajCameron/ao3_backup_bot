@@ -1,4 +1,3 @@
-
 """
 Holds the API for the comment class.
 """
@@ -10,4 +9,3 @@ class CommentAPI(abc.ABC):
     """
     API for the comment class.
     """
-

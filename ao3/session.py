@@ -114,7 +114,7 @@ class GuestSession(SessionAPI):
             req = self.session.get("https://archiveofourown.org")
 
         if req.status_code == 429:
-            raise utils.BackoffError(
+            raise utils.RateLimitError(
                 "We are being rate-limited. Try again in a while or reduce the number of requests"
             )
 
@@ -138,7 +138,7 @@ class GuestSession(SessionAPI):
                 "get", url=url, proxies=proxies, session=self.session
             )
         if req.status_code == 429:
-            raise utils.HTTPError(
+            raise utils.RateLimitError(
                 "We are being rate-limited. Try again in a while or reduce the number of requests"
             )
         return req
@@ -170,7 +170,7 @@ class GuestSession(SessionAPI):
                 bytes,
             ]
         ] = None,
-        allow_redirects=False,
+        allow_redirects: bool = False,
         headers: Optional[dict[str, str]] = None,
         data: Optional[dict[str, str]] = None,
     ):
@@ -180,10 +180,16 @@ class GuestSession(SessionAPI):
             requests.Request
         """
 
-        req = self.session.post(url=url, params=params, allow_redirects=allow_redirects, headers=headers, data=data)
+        req = self.session.post(
+            url=url,
+            params=params,
+            allow_redirects=allow_redirects,
+            headers=headers,
+            data=data,
+        )
 
         if req.status_code == 429:
-            raise utils.BackoffError(
+            raise utils.RateLimitError(
                 "We are being rate-limited. Try again in a while or reduce the number of requests"
             )
         return req
@@ -246,7 +252,7 @@ class Session(GuestSession):
         )
 
         if post.status_code == 429:
-            raise utils.BackoffError(
+            raise utils.RateLimitError(
                 "We are being rate-limited. Try again in a while or reduce the number of requests"
             )
 
@@ -711,7 +717,9 @@ class Session(GuestSession):
 
         return string.replace(",", "")
 
-    def get_marked_for_later(self, sleep: int = 1, timeout_sleep: int = 60) -> list["Work"]:
+    def get_marked_for_later(
+        self, sleep: int = 1, timeout_sleep: int = 60
+    ) -> list["Work"]:
         """
         Gets every marked for later work
 

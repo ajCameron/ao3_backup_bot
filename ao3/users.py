@@ -1,5 +1,16 @@
+
+"""
+Represents users of the archive.
+
+They can author works, series, all manner of stuff.
+Someone should probably look into them.
+"""
+
+
 from functools import cached_property
 
+
+from typing import Optional, Any
 
 from bs4 import BeautifulSoup
 
@@ -13,7 +24,7 @@ class User:
     AO3 user object
     """
 
-    def __init__(self, username, session=None, load=True):
+    def __init__(self, username: str, session: Optional["Session"] = None, load: bool = True):
         """Creates a new AO3 user object
 
         Args:
@@ -32,13 +43,29 @@ class User:
         if load:
             self.reload()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """
+        String rep of the class.
+
+        :return:
+        """
         return f"<User [{self.username}]>"
 
-    def __eq__(self, other):
-        return isinstance(other, __class__) and other.username == self.username
+    def __eq__(self, other: "User") -> bool:
+        """
+        Check to see if this user is equivilent to the other.
 
-    def __getstate__(self):
+        :param other:
+        :return:
+        """
+        return isinstance(other, self.__class__) and other.username == self.username
+
+    def __getstate__(self) -> dict[str, Any]:
+        """
+        Dump the state to dict.
+
+        :return:
+        """
         d = {}
         for attr in self.__dict__:
             if isinstance(self.__dict__[attr], BeautifulSoup):
@@ -47,7 +74,13 @@ class User:
                 d[attr] = (self.__dict__[attr], False)
         return d
 
-    def __setstate__(self, d):
+    def __setstate__(self, d: dict[str, Any]) -> None:
+        """
+        Load the state from dict.
+
+        :param d:
+        :return:
+        """
         for attr in d:
             value, issoup = d[attr]
             if issoup:
@@ -55,7 +88,7 @@ class User:
             else:
                 self.__dict__[attr] = value
 
-    def set_session(self, session):
+    def set_session(self, session: "Session") -> None:
         """Sets the session used to make requests for this work
 
         Args:
@@ -65,7 +98,7 @@ class User:
         self._session = session
 
     @threadable.threadable
-    def reload(self):
+    def reload(self) -> None:
         """
         Loads information about this user.
         This function is threadable.

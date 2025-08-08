@@ -61,7 +61,12 @@ class ThreadPool:
         self._tasks.append(task)
 
     @threadable
-    def start(self):
+    def start(self) -> None:
+        """
+        Run the threadpool to execute all tasks.
+
+        :return:
+        """
         while len(self._threads) != 0 or len(self._tasks) != 0:
             self._threads[:] = filter(lambda thread: thread.is_alive(), self._threads)
             for _ in range(min(self.maximum - len(self._threads), len(self._tasks))):

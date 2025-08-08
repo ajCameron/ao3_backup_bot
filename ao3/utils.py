@@ -77,7 +77,7 @@ class HTTPError(Exception):
         self.errors = errors
 
 
-class BackoffError(HTTPError):
+class RateLimitError(HTTPError):
     """
     Error might be resolved by backing off.
 

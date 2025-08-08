@@ -1,4 +1,3 @@
-
 """
 Holds the base class for all AO3 objects.
 """
@@ -7,15 +6,11 @@ from functools import cached_property
 
 import requests
 
-from typing import Optional, Any
-
 import bs4
 from bs4 import BeautifulSoup
 
-from ao3 import threadable, utils
-from ao3.comments import Comment
+from ao3 import utils
 from ao3.requester import requester
-from ao3.users import User
 
 
 class BaseObjectAPI:
@@ -41,11 +36,9 @@ class BaseObjectAPI:
         if self._session is None:
             req = requester.request("get", url=url)
         else:
-            req = requester.request(
-                "get", url=url, session=self._session.session
-            )
+            req = requester.request("get", url=url, session=self._session.session)
         if req.status_code == 429:
-            raise utils.BackoffError(
+            raise utils.RateLimitError(
                 "We are being rate-limited. Try again in a while or reduce the number of requests"
             )
         return req

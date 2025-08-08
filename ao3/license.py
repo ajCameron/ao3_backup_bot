@@ -1,3 +1,7 @@
+"""
+Original license - must be included with the work.
+"""
+
 ORIGINAL_LICENSE = """
 MIT License
 

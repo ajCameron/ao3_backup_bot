@@ -1,18 +1,31 @@
+"""
+Wwraps requests in a convenience class for easier use.
+
+(Mostly makes it harder to hit the rate limits)>
+"""
+
 import threading
 import time
 
 import requests
 
+from typing import Optional, Union
+
 
 class Requester:
     """Requester object"""
 
-    def __init__(self, rqtw=-1, timew=60):
+    _rqtw: int
+    _timew: int
+    _lock: threading.Lock
+    total: int
+
+    def __init__(self, rqtw: int = -1, timew: int = 60) -> None:
         """Limits the request rate to prevent HTTP 429 (rate limiting) responses.
         12 request per minute seems to be the limit.
 
         Args:
-            rqm (int, optional): Maximum requests per time window (-1 -> no limit). Defaults to -1.
+            rqtw (int, optional): Maximum requests per time window (-1 -> no limit). Defaults to -1.
             timew (int, optional): Time window (seconds). Defaults to 60.
         """
 
@@ -22,13 +35,42 @@ class Requester:
         self._lock = threading.Lock()
         self.total = 0
 
-    def setRQTW(self, value):
+    def setRQTW(self, value: int) -> None:
+        """
+        Sets the maximum number of requests per time window.
+
+        :param value:
+        :return:
+        """
         self._rqtw = value
 
-    def setTimeW(self, value):
+    def setTimeW(self, value: int) -> None:
+        """
+        Sets the time window.
+
+        :param value:
+        :return:
+        """
         self._timew = value
 
-    def request(self, *args, **kwargs) -> requests.Response:
+    def request(
+        self,
+        method: str,
+        url: str,
+        params: Optional[
+            Union[
+                dict[str, Union[str, int, float, bool]],
+                list[tuple[str, Union[str, int, float, bool]]],
+                bytes,
+            ]
+        ] = None,
+        allow_redirects: bool = True,
+        headers: Optional[dict[str, str]] = None,
+        data: Optional[dict[str, str]] = None,
+        proxies: Optional[dict[str, str]] = None,
+        timeout: Optional[Union[float, tuple[float, float]]] = None,
+        session: Optional["Session"] = None,
+    ) -> requests.Response:
         """Requests a web page once enough time has passed since the last request
 
         Args:
@@ -60,12 +102,28 @@ class Requester:
                     self._requests.append(time.time())
                 self.total += 1
 
-        if "session" in kwargs:
-            sess = kwargs["session"]
-            del kwargs["session"]
-            req = sess.request(*args, **kwargs)
+        if session is not None:
+            req = session.request(
+                method,
+                url,
+                proxies=proxies,
+                params=params,
+                allow_redirects=allow_redirects,
+                data=data,
+                headers=headers,
+                timeout=timeout,
+            )
         else:
-            req = requests.request(*args, **kwargs)
+            req = requests.request(
+                method,
+                url,
+                proxies=proxies,
+                params=params,
+                allow_redirects=allow_redirects,
+                data=data,
+                headers=headers,
+                timeout=timeout,
+            )
 
         return req
 

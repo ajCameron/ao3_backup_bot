@@ -1,7 +1,16 @@
+
+"""
+Support searching the archive for works.
+"""
+
+from typing import Optional, Union
+
+
 from math import ceil
 
 from bs4 import BeautifulSoup
 
+import ao3.utils
 from ao3 import threadable, utils
 from ao3.common import get_work_from_banner
 from ao3.requester import requester
@@ -27,32 +36,35 @@ ASCENDING = "asc"
 
 
 class Search:
+    """
+    Represents a search preformed on the arhive.
+    """
     def __init__(
         self,
-        any_field="",
-        title="",
-        author="",
-        single_chapter=False,
-        word_count=None,
-        language="",
-        fandoms="",
-        rating=None,
-        hits=None,
-        kudos=None,
-        crossovers=None,
-        bookmarks=None,
-        excluded_tags="",
-        comments=None,
-        completion_status=None,
-        page=1,
-        sort_column="",
-        sort_direction="",
-        revised_at="",
-        characters="",
-        relationships="",
-        tags="",
-        session=None,
-    ):
+        any_field: Optional[str] = "",
+        title: Optional[str] = "",
+        author: Optional[str] = "",
+        single_chapter: Optional[bool] = False,
+        word_count: Optional[ao3.utils.Constraint] = None,
+        language: Optional[str] = "",
+        fandoms: Optional[str] = "",
+        rating: Optional[int] = None,
+        hits: Optional[ao3.utils.Constraint] = None,
+        kudos: Optional[ao3.utils.Constraint] = None,
+        crossovers: Optional[bool] = None,
+        bookmarks: Optional[ao3.utils.Constraint] = None,
+        excluded_tags: Optional[str] = "",
+        comments: Optional[ao3.utils.Constraint] = None,
+        completion_status: Optional[bool] = None,
+        page: Optional[int] = 1,
+        sort_column: Optional[str] = "",
+        sort_direction: Optional[str] = "",
+        revised_at: Optional[str] = "",
+        characters: Optional[str] = "",
+        relationships: Optional[str] = "",
+        tags: Optional[str] = "",
+        session: Optional["Session"] = None,
+    ) -> None:
 
         self.any_field = any_field
         self.title = title
@@ -85,7 +97,9 @@ class Search:
 
     @threadable.threadable
     def update(self):
-        """Sends a request to the AO3 website with the defined search parameters, and updates all info.
+        """
+        Sends a request to the AO3 website with the defined search parameters, and updates all info.
+
         This function is threadable.
         """
 
@@ -152,29 +166,29 @@ class Search:
 
 
 def search(
-    any_field="",
-    title="",
-    author="",
-    single_chapter=False,
-    word_count=None,
-    language="",
-    fandoms="",
-    rating=None,
-    hits=None,
-    kudos=None,
-    crossovers=None,
-    bookmarks=None,
-    excluded_tags="",
-    comments=None,
-    completion_status=None,
-    page=1,
-    sort_column="",
-    sort_direction="",
-    revised_at="",
-    session=None,
-    characters="",
-    relationships="",
-    tags="",
+    any_field: Optional[str] = "",
+    title: Optional[str] = "",
+    author: Optional[str] = "",
+    single_chapter: Optional[bool] = False,
+    word_count: Optional[ao3.utils.Constraint] = None,
+    language: Optional[str] = "",
+    fandoms: Optional[str] = "",
+    rating: Optional[int] = None,
+    hits: Optional[ao3.utils.Constraint] = None,
+    kudos: Optional[ao3.utils.Constraint] =None,
+    crossovers: Optional[bool] = None,
+    bookmarks: Optional[ao3.utils.Constraint] = None,
+    excluded_tags: Optional[str] = "",
+    comments: Optional[ao3.utils.Constraint] =None,
+    completion_status: Optional[bool] = None,
+    page: Optional[int] = 1,
+    sort_column: Optional[str] = "",
+    sort_direction: Optional[str] = "",
+    revised_at: Optional[str] = "",
+    session: Optional["Session"] = None,
+    characters: Optional[str] = "",
+    relationships: Optional[str] = "",
+    tags: Optional[str] = "",
 ):
     """Returns the results page for the search as a Soup object
 
@@ -258,7 +272,7 @@ def search(
     else:
         req = session.get(url)
     if req.status_code == 429:
-        raise utils.HTTPError(
+        raise utils.RateLimitError(
             "We are being rate-limited. Try again in a while or reduce the number of requests"
         )
     soup = BeautifulSoup(req.content, features="lxml")
