@@ -1,4 +1,3 @@
-
 """
 Represents a series of works on the archive.
 """
@@ -8,24 +7,26 @@ from typing import Optional, Any
 from datetime import date
 from functools import cached_property
 
-from bs4 import BeautifulSoup
-
+import ao3.errors
 from ao3 import threadable, utils
 from ao3.common import get_work_from_banner
-from ao3.requester import requester
 from ao3.users import User
-from ao3.works import Work
-from ao3.api.object_api import BaseObjectAPI
+from ao3.api.comment_session_work_api import SeriesAPI, SessionAPI, WorkAPI
 
 
-class Series(BaseObjectAPI):
+class Series(SeriesAPI):
     """
     Represent a series on the archive.
     """
 
     id: int
 
-    def __init__(self, seriesid: int, session: Optional["Session"] = None, load: Optional[bool] = True):
+    def __init__(
+        self,
+        seriesid: int,
+        session: Optional["SessionAPI"] = None,
+        load: Optional[bool] = True,
+    ):
         """Creates a new series object
 
         Args:
@@ -36,16 +37,14 @@ class Series(BaseObjectAPI):
         Raises:
             utils.InvalidIdError: Invalid series ID
         """
+        super().__init__(seriesid=seriesid, session=session, load=load)
 
-        self.id = seriesid
-        self._session = session
-        self._soup = None
         if load:
             self.reload()
 
-    def __eq__(self, other: "Series") -> bool:
+    def __eq__(self, other: "SeriesAPI") -> bool:
         """
-        Checks the other
+        Checks the other series is the same as this one.
 
         :param other:
         :return:
@@ -63,35 +62,7 @@ class Series(BaseObjectAPI):
         except Exception as e:
             return f"<Series [{self.id}] - [{e}]>"
 
-    def __getstate__(self) -> dict[str, Any]:
-        """
-        Return the current state of the class.
-
-        :return:
-        """
-        d = {}
-        for attr in self.__dict__:
-            if isinstance(self.__dict__[attr], BeautifulSoup):
-                d[attr] = (self.__dict__[attr].encode(), True)
-            else:
-                d[attr] = (self.__dict__[attr], False)
-        return d
-
-    def __setstate__(self, d: dict[str, Any]):
-        """
-        Write the saved state back out to itself.
-
-        :param d:
-        :return:
-        """
-        for attr in d:
-            value, issoup = d[attr]
-            if issoup:
-                self.__dict__[attr] = BeautifulSoup(value, "lxml")
-            else:
-                self.__dict__[attr] = value
-
-    def set_session(self, session: "Session") -> None:
+    def set_session(self, session: "SessionAPI") -> None:
         """Sets the session used to make requests for this series
 
         Args:
@@ -115,7 +86,9 @@ class Series(BaseObjectAPI):
 
         self._soup = self.request(f"https://archiveofourown.org/series/{self.id}")
         if "Error 404" in self._soup.text:
-            raise utils.InvalidIdError("Cannot find series")
+            raise errors.InvalidIdException(
+                "Cannot find series - 404 when loading soup."
+            )
 
     @threadable.threadable
     def subscribe(self) -> None:
@@ -128,7 +101,7 @@ class Series(BaseObjectAPI):
         """
 
         if self._session is None or not self._session.is_authed:
-            raise utils.AuthError(
+            raise errors.AuthException(
                 "You can only subscribe to a series using an authenticated session"
             )
 
@@ -147,7 +120,7 @@ class Series(BaseObjectAPI):
         if not self.is_subscribed:
             raise Exception("You are not subscribed to this series")
         if self._session is None or not self._session.is_authed:
-            raise utils.AuthError(
+            raise errors.AuthException(
                 "You can only unsubscribe from a series using an authenticated session"
             )
 
@@ -161,7 +134,7 @@ class Series(BaseObjectAPI):
         collections: Optional[list[str]] = None,
         private: Optional[bool] = False,
         recommend: Optional[bool] = False,
-        pseud: Optional[str]=None,
+        pseud: Optional[str] = None,
     ) -> None:
         """Bookmarks this series.
 
@@ -181,12 +154,12 @@ class Series(BaseObjectAPI):
         """
 
         if not self.loaded:
-            raise utils.UnloadedError(
+            raise errors.UnloadedException(
                 "Series isn't loaded. Have you tried calling Series.reload()?"
             )
 
         if self._session is None:
-            raise utils.AuthError("Invalid session")
+            raise errors.AuthException("Invalid session")
 
         utils.bookmark(
             self, self._session, notes, tags, collections, private, recommend, pseud
@@ -204,15 +177,15 @@ class Series(BaseObjectAPI):
         """
 
         if not self.loaded:
-            raise utils.UnloadedError(
+            raise errors.UnloadedException(
                 "Series isn't loaded. Have you tried calling Series.reload()?"
             )
 
         if self._session is None:
-            raise utils.AuthError("Invalid session")
+            raise errors.AuthException("Invalid session")
 
         if self._bookmarkid is None:
-            raise utils.BookmarkError("You don't have a bookmark here")
+            raise errors.BookmarkException("You don't have a bookmark here")
 
         utils.delete_bookmark(self._bookmarkid, self._session, self.authenticity_token)
 
@@ -249,7 +222,7 @@ class Series(BaseObjectAPI):
 
     @property
     def loaded(self) -> bool:
-        """Returns True if this series has been loaded"""
+        """Returns True if this series has been loaded."""
         return self._soup is not None
 
     @cached_property
@@ -264,15 +237,41 @@ class Series(BaseObjectAPI):
 
     @cached_property
     def is_subscribed(self) -> bool:
-        """True if you're subscribed to this series"""
+        """True if you're subscribed to this series."""
 
         if self._session is None or not self._session.is_authed:
-            raise utils.AuthError(
+            raise errors.AuthException(
                 "You can only get a series ID using an authenticated session"
             )
 
+        # First level
         form = self._soup.find("form", {"data-create-value": "Subscribe"})
-        input_ = form.find("input", {"name": "commit", "value": "Unsubscribe"})
+        if form is not None:
+            input_ = form.find("input", {"name": "commit", "value": "Unsubscribe"})
+            return input_ is not None
+
+        # Fallback
+        forms = self._soup.findAll("form")
+
+        assert forms is not None, (
+            f"We couldn't find any forms in the soup" f" - \n\n{self._soup}"
+        )
+        sub_form = None
+        for single_form in forms:
+            try:
+                if single_form["data-create-value"] == "Subscribe":
+                    sub_form = single_form
+                    break
+            except KeyError:
+                pass
+
+        assert sub_form is not None, f"Right form not found in {forms}"
+
+        assert (
+            sub_form["data-create-value"] == "Subscribe"
+        ), f"Right form not found in {forms}"
+
+        input_ = sub_form.find("input", {"name": "commit", "value": "Unsubscribe"})
         return input_ is not None
 
     @cached_property
@@ -333,7 +332,7 @@ class Series(BaseObjectAPI):
                 date_str = field.getText().strip()
                 break
         if date_str is None:
-            raise utils.HTTPError("Couldn't find the date in the HTML.")
+            raise errors.HTTPException("Couldn't find the date in the HTML.")
         return date(*list(map(int, date_str.split("-"))))
 
     @cached_property
@@ -356,7 +355,7 @@ class Series(BaseObjectAPI):
                 break
 
         if date_str is None:
-            raise utils.HTTPError("Couldn't find the date in the HTML.")
+            raise errors.HTTPException("Couldn't find the date in the HTML.")
 
         return date(*list(map(int, date_str.split("-"))))
 
@@ -379,7 +378,7 @@ class Series(BaseObjectAPI):
                 break
 
         if words is None:
-            raise utils.HTTPError("Couldn't find the word count in the HTML.")
+            raise errors.HTTPException("Couldn't find the word count in the HTML.")
 
         return int(words.replace(",", ""))
 
@@ -402,12 +401,17 @@ class Series(BaseObjectAPI):
                 break
 
         if works is None:
-            raise utils.HTTPError("Couldn't find the works count in the HTML.")
+            raise errors.HTTPException("Couldn't find the works count in the HTML.")
 
         return int(works.replace(",", ""))
 
     @cached_property
     def complete(self):
+        """
+        Has the series complete tags been set to True?
+
+        :return:
+        """
         dl = self._soup.find("dl", {"class": "series meta group"})
         stats = dl.find("dl", {"class": "stats"}).findAll(("dd", "dt"))
         last_dt = None
@@ -420,7 +424,7 @@ class Series(BaseObjectAPI):
                 break
 
         if complete is None:
-            raise utils.HTTPError("Couldn't find the complete flag in the HTML.")
+            raise errors.HTTPException("Couldn't find the complete flag in the HTML.")
 
         return True if complete == "Yes" else False
 
@@ -482,7 +486,7 @@ class Series(BaseObjectAPI):
         return int(book.replace(",", ""))
 
     @cached_property
-    def work_list(self) -> list[Work]:
+    def work_list(self) -> list[WorkAPI]:
         """
         List of works in this series.
 
@@ -494,6 +498,7 @@ class Series(BaseObjectAPI):
             if work.h4 is None:
                 continue
             works.append(get_work_from_banner(work))
+
         #     authors = []
         #     if work.h4 is None:
         #         continue
@@ -508,4 +513,5 @@ class Series(BaseObjectAPI):
         #     setattr(new, "title", workname)
         #     setattr(new, "authors", authors)
         #     works.append(new)
+
         return works

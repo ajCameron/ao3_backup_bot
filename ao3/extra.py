@@ -9,6 +9,7 @@ import pickle
 
 from bs4 import BeautifulSoup
 
+import errors
 from ao3 import threadable, utils
 from ao3.requester import requester
 
@@ -41,7 +42,7 @@ def _download_languages() -> None:
         with open(f"{os.path.join(language_path, 'languages')}.pkl", "wb") as file:
             pickle.dump(languages, file)
     except AttributeError:
-        raise utils.UnexpectedResponseError(
+        raise errors.UnexpectedResponseException(
             "Couldn't download the desired resource. Do you have the latest version of ao3-api?"
         )
     print(f"Download complete ({len(languages)} languages)")
@@ -75,7 +76,7 @@ def _download_fandom(fandom_key: str, name: str) -> None:
         with open(f"{os.path.join(fandom_path, name)}.pkl", "wb") as file:
             pickle.dump(fandoms, file)
     except AttributeError:
-        raise utils.UnexpectedResponseError(
+        raise errors.UnexpectedResponseException(
             "Couldn't download the desired resource. Do you have the latest version of ao3-api?"
         )
     print(f"Download complete ({len(fandoms)} fandoms)")
@@ -155,7 +156,7 @@ def get_resources() -> dict[str, list[str]]:
 
 
 def has_resource(resource: str) -> bool:
-    """Returns True if resource was already download, False otherwise"""
+    """Returns True if resource was already download, False otherwise,"""
     path = os.path.join(os.path.dirname(__file__), "resources")
     return len(list(pathlib.Path(path).rglob(resource + ".pkl"))) > 0
 

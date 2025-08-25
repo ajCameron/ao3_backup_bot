@@ -1,4 +1,3 @@
-
 """
 Support searching the archive for works.
 """
@@ -10,13 +9,11 @@ from math import ceil
 
 from bs4 import BeautifulSoup
 
-import ao3.utils
+import ao3.errors
 from ao3 import threadable, utils
 from ao3.common import get_work_from_banner
 from ao3.requester import requester
-from ao3.series import Series
-from ao3.users import User
-from ao3.works import Work
+
 
 DEFAULT = "_score"
 BEST_MATCH = "_score"
@@ -39,6 +36,7 @@ class Search:
     """
     Represents a search preformed on the arhive.
     """
+
     def __init__(
         self,
         any_field: Optional[str] = "",
@@ -175,11 +173,11 @@ def search(
     fandoms: Optional[str] = "",
     rating: Optional[int] = None,
     hits: Optional[ao3.utils.Constraint] = None,
-    kudos: Optional[ao3.utils.Constraint] =None,
+    kudos: Optional[ao3.utils.Constraint] = None,
     crossovers: Optional[bool] = None,
     bookmarks: Optional[ao3.utils.Constraint] = None,
     excluded_tags: Optional[str] = "",
-    comments: Optional[ao3.utils.Constraint] =None,
+    comments: Optional[ao3.utils.Constraint] = None,
     completion_status: Optional[bool] = None,
     page: Optional[int] = 1,
     sort_column: Optional[str] = "",
@@ -220,7 +218,7 @@ def search(
         bs4.BeautifulSoup: Search result's soup
     """
 
-    query = utils.Query()
+    query = Query()
     query.add_field(f"work_search[query]={any_field if any_field != '' else ' '}")
     if page != 1:
         query.add_field(f"page={page}")
@@ -272,8 +270,39 @@ def search(
     else:
         req = session.get(url)
     if req.status_code == 429:
-        raise utils.RateLimitError(
+        raise errors.RateLimitException(
             "We are being rate-limited. Try again in a while or reduce the number of requests"
         )
     soup = BeautifulSoup(req.content, features="lxml")
     return soup
+
+
+class Query:
+    """
+    Class to represent a search query.
+    """
+
+    def __init__(self) -> None:
+        """
+        Setup the search fields.
+        """
+        self.fields = []
+
+    def add_field(self, text: str) -> None:
+        """
+        Add a field to the inbuilt fields for search.
+
+        This will be encoded in the URL for when the search is actually run.
+        :param text:
+        :return:
+        """
+        self.fields.append(text)
+
+    @property
+    def string(self) -> str:
+        """
+        Generate the search string.
+
+        :return:
+        """
+        return "&".join(self.fields)

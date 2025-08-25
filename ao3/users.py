@@ -1,4 +1,3 @@
-
 """
 Represents users of the archive.
 
@@ -6,25 +5,25 @@ They can author works, series, all manner of stuff.
 Someone should probably look into them.
 """
 
-
 from functools import cached_property
 
+from typing import Optional
 
-from typing import Optional, Any
-
-from bs4 import BeautifulSoup
-
+import ao3.errors
 from ao3 import threadable, utils
 from ao3.common import get_work_from_banner
-from ao3.requester import requester
+from ao3.api.object_api import BaseObjectAPI
+from ao3.api.comment_session_work_api import WorkAPI
 
 
-class User:
+class User(BaseObjectAPI):
     """
     AO3 user object
     """
 
-    def __init__(self, username: str, session: Optional["Session"] = None, load: bool = True):
+    def __init__(
+        self, username: str, session: Optional["Session"] = None, load: bool = True
+    ):
         """Creates a new AO3 user object
 
         Args:
@@ -60,34 +59,6 @@ class User:
         """
         return isinstance(other, self.__class__) and other.username == self.username
 
-    def __getstate__(self) -> dict[str, Any]:
-        """
-        Dump the state to dict.
-
-        :return:
-        """
-        d = {}
-        for attr in self.__dict__:
-            if isinstance(self.__dict__[attr], BeautifulSoup):
-                d[attr] = (self.__dict__[attr].encode(), True)
-            else:
-                d[attr] = (self.__dict__[attr], False)
-        return d
-
-    def __setstate__(self, d: dict[str, Any]) -> None:
-        """
-        Load the state from dict.
-
-        :param d:
-        :return:
-        """
-        for attr in d:
-            value, issoup = d[attr]
-            if issoup:
-                self.__dict__[attr] = BeautifulSoup(value, "lxml")
-            else:
-                self.__dict__[attr] = value
-
     def set_session(self, session: "Session") -> None:
         """Sets the session used to make requests for this work
 
@@ -101,6 +72,7 @@ class User:
     def reload(self) -> None:
         """
         Loads information about this user.
+
         This function is threadable.
         """
 
@@ -110,7 +82,13 @@ class User:
                     delattr(self, attr)
 
         @threadable.threadable
-        def req_works(username):
+        def req_works(username: str) -> None:
+            """
+            Update the user works soup - for later parsing.
+
+            :param username:
+            :return:
+            """
             self._soup_works = self.request(
                 f"https://archiveofourown.org/users/{username}/works"
             )
@@ -118,7 +96,13 @@ class User:
             setattr(self, "authenticity_token", token["content"])
 
         @threadable.threadable
-        def req_profile(username):
+        def req_profile(username: str) -> None:
+            """
+            Update the profile page soup - for later parsing.
+
+            :param username:
+            :return:
+            """
             self._soup_profile = self.request(
                 f"https://archiveofourown.org/users/{username}/profile"
             )
@@ -126,7 +110,13 @@ class User:
             setattr(self, "authenticity_token", token["content"])
 
         @threadable.threadable
-        def req_bookmarks(username):
+        def req_bookmarks(username: str) -> None:
+            """
+            Update the user booksmarks soup - for later parsing.
+
+            :param username:
+            :return:
+            """
             self._soup_bookmarks = self.request(
                 f"https://archiveofourown.org/users/{username}/bookmarks"
             )
@@ -144,8 +134,8 @@ class User:
         self._works = None
         self._bookmarks = None
 
-    def get_avatar(self):
-        """Returns a tuple containing the name of the file and its data
+    def get_avatar(self) -> tuple[str, bytes]:
+        """Returns a tuple containing the avatar name of the file and its data.
 
         Returns:
             tuple: (name: str, img: bytes)
@@ -158,8 +148,9 @@ class User:
         return name, img
 
     @threadable.threadable
-    def subscribe(self):
+    def subscribe(self) -> None:
         """Subscribes to this user.
+
         This function is threadable.
 
         Raises:
@@ -167,15 +158,16 @@ class User:
         """
 
         if self._session is None or not self._session.is_authed:
-            raise utils.AuthError(
+            raise errors.AuthException(
                 "You can only subscribe to a user using an authenticated session"
             )
 
         utils.subscribe(self, "User", self._session)
 
     @threadable.threadable
-    def unsubscribe(self):
+    def unsubscribe(self) -> None:
         """Unubscribes from this user.
+
         This function is threadable.
 
         Raises:
@@ -185,23 +177,28 @@ class User:
         if not self.is_subscribed:
             raise Exception("You are not subscribed to this user")
         if self._session is None or not self._session.is_authed:
-            raise utils.AuthError(
+            raise errors.AuthException(
                 "You can only unsubscribe from a user using an authenticated session"
             )
 
         utils.subscribe(self, "User", self._session, True, self._sub_id)
 
     @property
-    def id(self):
+    def id(self) -> Optional[int]:
+        """
+        Return the subscribable id of this user - if it has one.
+
+        :return:
+        """
         id_ = self._soup_profile.find("input", {"id": "subscription_subscribable_id"})
         return int(id_["value"]) if id_ is not None else None
 
     @cached_property
-    def is_subscribed(self):
-        """True if you're subscribed to this user"""
+    def is_subscribed(self) -> bool:
+        """True if you're subscribed to this user."""
 
         if self._session is None or not self._session.is_authed:
-            raise utils.AuthError(
+            raise errors.AuthException(
                 "You can only get a user ID using an authenticated session"
             )
 
@@ -210,8 +207,8 @@ class User:
         return input_ is not None
 
     @property
-    def loaded(self):
-        """Returns True if this user has been loaded"""
+    def loaded(self) -> bool:
+        """Returns True if this user has been loaded."""
         return self._soup_profile is not None
 
     # @cached_property
@@ -225,21 +222,28 @@ class User:
     #     return token["content"]
 
     @cached_property
-    def user_id(self):
+    def user_id(self) -> int:
+        """
+        This is different from the id for some reason.
+
+        :return:
+        """
         if self._session is None or not self._session.is_authed:
-            raise utils.AuthError(
+            raise errors.AuthException(
                 "You can only get a user ID using an authenticated session"
             )
 
         header = self._soup_profile.find("div", {"class": "primary header module"})
         input_ = header.find("input", {"name": "subscription[subscribable_id]"})
         if input_ is None:
-            raise utils.UnexpectedResponseError("Couldn't fetch user ID")
+            raise errors.UnexpectedResponseException("Couldn't fetch user ID")
         return int(input_.attrs["value"])
 
     @cached_property
-    def _sub_id(self):
-        """Returns the subscription ID. Used for unsubscribing"""
+    def _sub_id(self) -> int:
+        """Returns the subscription ID.
+
+        Used for unsubscribing."""
 
         if not self.is_subscribed:
             raise Exception("You are not subscribed to this user")
@@ -249,8 +253,10 @@ class User:
         return int(id_)
 
     @cached_property
-    def works(self):
-        """Returns the number of works authored by this user
+    def works(self) -> int:
+        """Returns the number of works authored by this user.
+
+        Not a list of the works - as you might expect!
 
         Returns:
             int: Number of works
@@ -263,7 +269,12 @@ class User:
         return int(h2[4].replace(",", ""))
 
     @cached_property
-    def _works_pages(self):
+    def _works_pages(self) -> int:
+        """
+        Returns the number of pages of works that need to be gone through.
+
+        :return:
+        """
         pages = self._soup_works.find("ol", {"title": "pagination"})
         if pages is None:
             return 1
@@ -274,7 +285,7 @@ class User:
                 n = int(text)
         return n
 
-    def get_works(self, use_threading=False):
+    def get_works(self, use_threading: bool = False) -> list["WorkAPI"]:
         """
         Get works authored by this user.
 
@@ -292,9 +303,10 @@ class User:
         return self._works
 
     @threadable.threadable
-    def load_works_threaded(self):
+    def load_works_threaded(self) -> None:
         """
         Get the user's works using threads.
+
         This function is threadable.
         """
 
@@ -306,8 +318,13 @@ class User:
             thread.join()
 
     @threadable.threadable
-    def _load_works(self, page=1):
-        from .works import Work
+    def _load_works(self, page: int = 1) -> None:
+        """
+        Load the user's works from a specified page.
+
+        :param page:
+        :return None: All changes are internal to the cache.
+        """
 
         self._soup_works = self.request(
             f"https://archiveofourown.org/users/{self.username}/works?page={page}"
@@ -321,7 +338,7 @@ class User:
             self._works.append(get_work_from_banner(work))
 
     @cached_property
-    def bookmarks(self):
+    def bookmarks(self) -> int:
         """Returns the number of works user has bookmarked
 
         Returns:
@@ -335,7 +352,12 @@ class User:
         return int(h2[4].replace(",", ""))
 
     @cached_property
-    def _bookmarks_pages(self):
+    def _bookmarks_pages(self) -> int:
+        """
+        Returns the number of pages of bookmarks the user has.
+
+        :return:
+        """
         pages = self._soup_bookmarks.find("ol", {"title": "pagination"})
         if pages is None:
             return 1
@@ -346,7 +368,7 @@ class User:
                 n = int(text)
         return n
 
-    def get_bookmarks(self, use_threading=False):
+    def get_bookmarks(self, use_threading: bool = False) -> list["WorkAPI"]:
         """
         Get this user's bookmarked works. Loads them if they haven't been previously
 
@@ -364,9 +386,10 @@ class User:
         return self._bookmarks
 
     @threadable.threadable
-    def load_bookmarks_threaded(self):
+    def load_bookmarks_threaded(self) -> None:
         """
         Get the user's bookmarks using threads.
+
         This function is threadable.
         """
 
@@ -378,9 +401,13 @@ class User:
             thread.join()
 
     @threadable.threadable
-    def _load_bookmarks(self, page=1):
-        from .works import Work
+    def _load_bookmarks(self, page: int = 1) -> None:
+        """
+        Load a page of the user's bookmarks.
 
+        :param page:
+        :return None: All changes to internal cache
+        """
         self._soup_bookmarks = self.request(
             f"https://archiveofourown.org/users/{self.username}/bookmarks?page={page}"
         )
@@ -388,13 +415,12 @@ class User:
         ol = self._soup_bookmarks.find("ol", {"class": "bookmark index group"})
 
         for work in ol.find_all("li", {"role": "article"}):
-            authors = []
             if work.h4 is None:
                 continue
             self._bookmarks.append(get_work_from_banner(work))
 
     @cached_property
-    def bio(self):
+    def bio(self) -> str:
         """Returns the user's bio
 
         Returns:
@@ -408,7 +434,7 @@ class User:
         return blockquote.getText() if blockquote is not None else ""
 
     @cached_property
-    def url(self):
+    def url(self) -> str:
         """Returns the URL to the user's profile
 
         Returns:
@@ -417,37 +443,8 @@ class User:
 
         return "https://archiveofourown.org/users/%s" % self.username
 
-    def get(self, *args, **kwargs):
-        """Request a web page and return a Response object"""
-
-        if self._session is None:
-            req = requester.request("get", *args, **kwargs)
-        else:
-            req = requester.request(
-                "get", *args, **kwargs, session=self._session.session
-            )
-        if req.status_code == 429:
-            raise utils.HTTPError(
-                "We are being rate-limited. Try again in a while or reduce the number of requests"
-            )
-        return req
-
-    def request(self, url):
-        """Request a web page and return a BeautifulSoup object.
-
-        Args:
-            url (str): Url to request
-
-        Returns:
-            bs4.BeautifulSoup: BeautifulSoup object representing the requested page's html
-        """
-
-        req = self.get(url)
-        soup = BeautifulSoup(req.content, "lxml")
-        return soup
-
     @staticmethod
-    def str_format(string):
+    def str_format(string: str) -> str:
         """Formats a given string
 
         Args:
@@ -460,7 +457,7 @@ class User:
         return string.replace(",", "")
 
     @property
-    def work_pages(self):
+    def work_pages(self) -> int:
         """
         Returns how many pages of works a user has
 

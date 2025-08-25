@@ -14,10 +14,9 @@ import requests.models
 from bs4 import BeautifulSoup
 
 from ao3 import threadable, utils
-from ao3.requester import requester
 from ao3.users import User
 
-from ao3.api.comment_api import CommentAPI
+from api.comment_session_work_api import CommentAPI, WorkAPI, SessionAPI
 from ao3.api.object_api import BaseObjectAPI
 
 
@@ -29,9 +28,9 @@ class Comment(CommentAPI, BaseObjectAPI):
     def __init__(
         self,
         comment_id: Union[str, int],
-        parent: Optional[Union["Work", "Chapter"]] = None,
+        parent: Optional[Union["WorkAPI", "Chapter"]] = None,
         parent_comment: Optional["Comment"] = None,
-        session: Optional["Session"] = None,
+        session: Optional["SessionAPI"] = None,
         load: bool = True,
     ):
         """Creates a new AO3 comment object
@@ -44,13 +43,13 @@ class Comment(CommentAPI, BaseObjectAPI):
             load (boolean, optional):  If true, the comment is loaded on initialization. Defaults to True.
         """
 
-        self.id = comment_id
-        self.parent = parent
-        self.parent_comment = parent_comment
-        self.authenticity_token = None
-        self._thread = None
-        self._session = session
-        self.__soup = None
+        super().__init__(
+            comment_id=comment_id,
+            parent=parent,
+            parent_comment=parent_comment,
+            session=session,
+        )
+
         if load:
             self.reload()
 
@@ -76,7 +75,7 @@ class Comment(CommentAPI, BaseObjectAPI):
         return self.__soup
 
     @property
-    def first_parent_comment(self) -> "Comment":
+    def first_parent_comment(self) -> "CommentAPI":
         """
         Return the first parent of this comment tree (which might be this comment).
 
@@ -121,9 +120,12 @@ class Comment(CommentAPI, BaseObjectAPI):
             text = ""
         return text
 
-    def get_thread(self) -> list["Comment"]:
+    def get_thread(self) -> list["CommentAPI"]:
         """Returns all the replies to this comment, and all subsequent replies recursively.
+
         Also loads any parent comments this comment might have.
+
+        Poorly named - could mean the thread of execution.
 
         Raises:
             utils.InvalidIdError: The specified comment_id was invalid
@@ -214,14 +216,14 @@ class Comment(CommentAPI, BaseObjectAPI):
         if parent is not None:
             parent._thread = l
 
-    def get_thread_iterator(self) -> Iterator["Comment"]:
+    def get_thread_iterator(self) -> Iterator["CommentAPI"]:
         """Returns a generator that allows you to iterate through the entire thread
 
         Returns:
             generator: The generator object
         """
 
-        return threadIterator(self)
+        return comment_thread_iterator(self)
 
     @threadable.threadable
     def reply(
@@ -311,7 +313,7 @@ class Comment(CommentAPI, BaseObjectAPI):
         utils.delete_comment(self, self._session)
 
 
-def threadIterator(comment: Comment) -> Iterator[Comment]:
+def comment_thread_iterator(comment: CommentAPI) -> Iterator[CommentAPI]:
     """
     Iterate over the thread a given comment is in.
 
@@ -323,6 +325,6 @@ def threadIterator(comment: Comment) -> Iterator[Comment]:
     else:
         for c in comment.get_thread():
             yield c
-            for sub in threadIterator(c):
+            for sub in comment_thread_iterator(c):
                 if c != sub:
                     yield sub

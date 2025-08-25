@@ -1,7 +1,10 @@
 
 import pytest
 
+import datetime
+
 import ao3
+import errors
 import utils
 
 
@@ -70,7 +73,7 @@ class TestWorkMetadata:
         assert work_metadata["id"] == 67764391
 
         assert isinstance(work_metadata["words"], int)
-        assert work_metadata["words"] >= 18334
+        assert int(work_metadata["words"]) >= 18334
 
         assert work_metadata["collections"] == []
 
@@ -99,7 +102,7 @@ class TestWorkMetadata:
 
         work = ao3.Work(workid, session=GuestSession(), load_chapters=True, load=True)
 
-        with pytest.raises(utils.AuthError):
+        with pytest.raises(errors.AuthException):
             assert work.is_subscribed is False
 
     def test_work_summary_subscribed_guest_session(self) -> None:
@@ -140,3 +143,71 @@ class TestWorkMetadata:
         assert isinstance(work.end_notes, str)
         assert work.end_notes == "", "There didn't used to be start notes on this work..."
         assert len(work.end_notes) == 0
+
+    def test_work_chapters_counts_subscribed_guest_session(self) -> None:
+        """
+        We are running on quest - so we should not be subscribed and cannot check.
+
+        :return:
+        """
+
+        url = "https://archiveofourown.org/works/67764391/chapters/175195496"
+        workid = ao3.utils.workid_from_url(url)
+
+        from ao3.session import GuestSession
+
+        work = ao3.Work(workid, session=GuestSession(), load_chapters=True, load=True)
+
+        assert isinstance(work.nchapters, int)
+        assert work.nchapters == 3
+
+        assert isinstance(work.expected_chapters, int)
+        assert work.expected_chapters == 5
+
+        assert work.status == "Work in Progress"
+
+    def test_work_hits_kudos_comments(self) -> None:
+        """
+        We are running on quest - so we should not be subscribed and cannot check.
+
+        :return:
+        """
+
+        url = "https://archiveofourown.org/works/67764391/chapters/175195496"
+        workid = ao3.utils.workid_from_url(url)
+
+        from ao3.session import GuestSession
+
+        work = ao3.Work(workid, session=GuestSession(), load_chapters=True, load=True)
+
+        assert isinstance(work.hits, int)
+        assert work.hits >= 409
+
+        assert isinstance(work.kudos, int)
+        assert work.kudos >= 18
+
+        assert isinstance(work.comments, int)
+        assert work.comments >= 11
+
+    def test_datetime_objects(self) -> None:
+        """
+        Tests the edited dates.
+
+        :return:
+        """
+
+        url = "https://archiveofourown.org/works/67764391/chapters/175195496"
+        workid = ao3.utils.workid_from_url(url)
+
+        from ao3.session import GuestSession
+
+        work = ao3.Work(workid, session=GuestSession(), load_chapters=True, load=True)
+
+        assert isinstance(work.date_published, datetime.date)
+        assert work.date_published == datetime.datetime(2025, 7, 18, 0, 0)
+
+        assert isinstance(work.date_edited, datetime.date)
+        assert work.date_edited == datetime.datetime(2025, 7, 29, 5, 3, 28)
+
+        assert isinstance(work.date_updated, datetime.date)
+        assert work.date_updated == datetime.datetime(2025, 7, 28, 0, 0)

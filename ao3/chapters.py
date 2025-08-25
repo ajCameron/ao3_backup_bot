@@ -6,14 +6,15 @@ from functools import cached_property
 
 import requests
 
-from typing import Optional, Any
+from typing import Optional
 
 import bs4
-from bs4 import BeautifulSoup
 
+from ao3 import errors
 from ao3 import threadable, utils
 from ao3.comments import Comment
 from ao3.api.object_api import BaseObjectAPI
+from ao3.api.comment_session_work_api import WorkAPI
 from ao3.users import User
 
 
@@ -23,10 +24,14 @@ class Chapter(BaseObjectAPI):
     """
 
     _session: Optional["Session"]
-    _work: "Work"
+    _work: WorkAPI
 
     def __init__(
-        self, chapterid: int, work: "Work", session: "Session" = None, load: bool = True
+        self,
+        chapterid: Optional[int],
+        work: WorkAPI,
+        session: "Session" = None,
+        load: bool = True,
     ) -> None:
         """
         Initialise the chapter.
@@ -65,35 +70,6 @@ class Chapter(BaseObjectAPI):
         """
         return isinstance(other, self.__class__) and other.id == self.id
 
-    def __getstate__(self) -> dict[str, Any]:
-        """
-        Return the current state of the chapter.
-
-        Suspect it's a bad idea to use this - as it might include the functions?
-        :return:
-        """
-        d = {}
-        for attr in self.__dict__:
-            if isinstance(self.__dict__[attr], BeautifulSoup):
-                d[attr] = (self.__dict__[attr].encode(), True)
-            else:
-                d[attr] = (self.__dict__[attr], False)
-        return d
-
-    def __setstate__(self, d: dict[str, Any]) -> None:
-        """
-        Write a chapter state out to this class.
-
-        :param d:
-        :return:
-        """
-        for attr in d:
-            value, issoup = d[attr]
-            if issoup:
-                self.__dict__[attr] = BeautifulSoup(value, "lxml")
-            else:
-                self.__dict__[attr] = value
-
     def set_session(self, session: "Session") -> None:
         """Sets the session used to make requests for this chapter
 
@@ -123,7 +99,7 @@ class Chapter(BaseObjectAPI):
             )
             workid = soup.find("li", {"class": "chapter entire"})
             if workid is None:
-                raise utils.InvalidIdError("Cannot find work")
+                raise errors.InvalidIdException("Cannot find work")
             self._work = Work(utils.workid_from_url(workid.a["href"]))
         else:
             self.work.reload()
@@ -162,12 +138,12 @@ class Chapter(BaseObjectAPI):
             return self._work.comment(comment_text, email, name, pseud)
 
         if not self.loaded:
-            raise utils.UnloadedError(
+            raise errors.UnloadedException(
                 "Chapter isn't loaded. Have you tried calling Chapter.reload()?"
             )
 
         if self._session is None:
-            raise utils.AuthError("Invalid session")
+            raise errors.AuthException("Invalid session")
 
         if self.id is not None:
             return utils.comment(
@@ -204,7 +180,7 @@ class Chapter(BaseObjectAPI):
             return self._work.get_comments(maximum=maximum)
 
         if not self.loaded:
-            raise utils.UnloadedError(
+            raise errors.UnloadedException(
                 "Chapter isn't loaded. Have you tried calling Chapter.reload()?"
             )
 
@@ -250,8 +226,7 @@ class Chapter(BaseObjectAPI):
                 comments.append(comment)
         return comments
 
-    # Suspct this should be str, int
-    def get_images(self) -> tuple[tuple[Any, int]]:
+    def get_images(self) -> tuple[tuple[str, int], ...]:
         """Gets all images from this work
 
         Raises:
@@ -282,7 +257,7 @@ class Chapter(BaseObjectAPI):
         return self.work.authenticity_token
 
     @property
-    def work(self) -> "Work":
+    def work(self) -> WorkAPI:
         """Work this chapter is a part of."""
         return self._work
 

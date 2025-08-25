@@ -3,17 +3,17 @@ import re
 import time
 from functools import cached_property
 
-from typing import Optional, Any, Union
+from typing import Optional, Union
 
 
 import requests
 from bs4 import BeautifulSoup
 
+import ao3.errors
 from ao3 import threadable, utils
-from ao3.requester import requester
 from ao3.series import Series
 from ao3.users import User
-from ao3.api.session_api import SessionAPI
+from ao3.api.comment_session_work_api import SessionAPI, WorkAPI
 
 
 class GuestSession(SessionAPI):
@@ -26,10 +26,12 @@ class GuestSession(SessionAPI):
     username: str
     session: requests.Session
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Startup a session object.
         """
+        super().__init__()
+
         self.is_authed = False
         self.authenticity_token = None
         self.username = ""
@@ -47,11 +49,11 @@ class GuestSession(SessionAPI):
     @threadable.threadable
     def comment(
         self,
-        commentable,
+        commentable: Union[WorkAPI, "Chapter"],
         comment_text: str,
         oneshot: bool = False,
         commentid: Optional[Union[str, int]] = None,
-    ):
+    ) -> requests.models.Response:
         """Leaves a comment on a specific work.
 
         This function is threadable.
@@ -77,7 +79,7 @@ class GuestSession(SessionAPI):
         return response
 
     @threadable.threadable
-    def kudos(self, work: "Work") -> bool:
+    def kudos(self, work: WorkAPI) -> bool:
         """Leave a 'kudos' in a specific work.
         This function is threadable.
 
@@ -114,7 +116,7 @@ class GuestSession(SessionAPI):
             req = self.session.get("https://archiveofourown.org")
 
         if req.status_code == 429:
-            raise utils.RateLimitError(
+            raise errors.RateLimitException(
                 "We are being rate-limited. Try again in a while or reduce the number of requests"
             )
 
@@ -122,77 +124,16 @@ class GuestSession(SessionAPI):
         token = soup.find("input", {"name": "authenticity_token"})
 
         if token is None:
-            raise utils.UnexpectedResponseError("Couldn't refresh token")
+            input_box = soup.find("input")
+            assert input_box["name"] == "authenticity_token"
+
+            self.authenticity_token = input_box["value"]
+            return
+
+        if token is None:
+            raise errors.UnexpectedResponseException("Couldn't refresh token")
 
         self.authenticity_token = token.attrs["value"]
-
-    def get(
-        self, url: str, proxies: Optional[dict[str, str]] = None
-    ) -> requests.Response:
-        """Request a web page and return a Response object"""
-
-        if self.session is None:
-            req = requester.request("get", url=url, proxies=proxies)
-        else:
-            req = requester.request(
-                "get", url=url, proxies=proxies, session=self.session
-            )
-        if req.status_code == 429:
-            raise utils.RateLimitError(
-                "We are being rate-limited. Try again in a while or reduce the number of requests"
-            )
-        return req
-
-    def request(
-        self, url: str, proxies: Optional[dict[str, str]] = None
-    ) -> BeautifulSoup:
-        """Request a web page and return a BeautifulSoup object.
-
-        Args:
-            url (str): Url to request
-            proxies (Optional[dict[str, str]]): Proxy server to use?
-
-        Returns:
-            bs4.BeautifulSoup: BeautifulSoup object representing the requested page's html
-        """
-
-        req = self.get(url=url, proxies=proxies)
-        soup = BeautifulSoup(req.content, "lxml")
-        return soup
-
-    def post(
-        self,
-        url: str,
-        params: Optional[
-            Union[
-                dict[str, Union[str, int, float, bool]],
-                list[tuple[str, Union[str, int, float, bool]]],
-                bytes,
-            ]
-        ] = None,
-        allow_redirects: bool = False,
-        headers: Optional[dict[str, str]] = None,
-        data: Optional[dict[str, str]] = None,
-    ):
-        """Make a post request with the current session
-
-        Returns:
-            requests.Request
-        """
-
-        req = self.session.post(
-            url=url,
-            params=params,
-            allow_redirects=allow_redirects,
-            headers=headers,
-            data=data,
-        )
-
-        if req.status_code == 429:
-            raise utils.RateLimitError(
-                "We are being rate-limited. Try again in a while or reduce the number of requests"
-            )
-        return req
 
     def __del__(self) -> None:
         """
@@ -214,9 +155,11 @@ class Session(GuestSession):
     _bookmarks_url: str
     _history_url: str
 
-    _bookmarks: Optional[list["Work"]]
+    _bookmarks: Optional[list[WorkAPI]]
 
-    _history: Optional[list[list["Work", int, datetime.datetime]]]
+    _history: Optional[list[list[WorkAPI, int, datetime.datetime]]]
+
+    logged_in: bool = False
 
     def __init__(self, username: str, password: str) -> None:
         """Creates a new AO3 session object
@@ -229,35 +172,75 @@ class Session(GuestSession):
             utils.LoginError: Login was unsucessful (wrong username or password)
         """
 
+        self.logged_in = False
+
         super().__init__()
+
         self.is_authed = True
         self.username = username
         self.url = "https://archiveofourown.org/users/%s" % self.username
 
         self.session = requests.Session()
 
-        soup = self.request("https://archiveofourown.org/users/login")
-        self.authenticity_token = soup.find("input", {"name": "authenticity_token"})[
-            "value"
-        ]
+        login_page_url = "https://archiveofourown.org/users/login"
+
+        soup = self.request(login_page_url, force_session=self.session)
+
+        assert soup is not None, f"Error when getting page {login_page_url = }"
+
+        input_box = soup.find("input")
+        assert input_box["name"] == "authenticity_token"
+
+        self.authenticity_token = input_box["value"]
+
         payload = {
             "user[login]": username,
             "user[password]": password,
             "authenticity_token": self.authenticity_token,
         }
-        post = self.post(
+        login_post_resp = self.post(
             "https://archiveofourown.org/users/login",
             params=payload,
             allow_redirects=False,
+            force_session=self.session,
         )
+        # Fallback to allowing redirects
+        # Something about the login process seems to have changed
+        if login_post_resp.status_code == 302:
 
-        if post.status_code == 429:
-            raise utils.RateLimitError(
+            login_post_resp = self.post(
+                "https://archiveofourown.org/users/login",
+                params=payload,
+                allow_redirects=True,
+                force_session=self.session,
+            )
+
+        if login_post_resp.status_code == 429:
+            raise errors.RateLimitException(
                 "We are being rate-limited. Try again in a while or reduce the number of requests"
             )
 
-        if not post.status_code == 302:
-            raise utils.LoginError("Invalid username or password")
+        if (
+            len(login_post_resp.history) == 1
+            and not login_post_resp.history[0].status_code == 302
+        ):
+            raise errors.LoginException("Invalid username or password")
+
+        # Last check - is the page title telling us auth failed?
+        content_type = login_post_resp.headers.get("content-type", "")
+        charset = "utf-8"  # sensible default
+
+        if "charset=" in content_type:
+            charset = content_type.split("charset=")[-1].split(";")[0].strip()
+
+        login_soup = BeautifulSoup(
+            login_post_resp.content.decode(charset, errors="replace"), "html.parser"
+        )
+
+        title = login_soup.title.string if login_soup.title else None
+
+        if title == "Auth Error | Archive of Our Own":
+            raise errors.LoginException("Invalid username or password")
 
         self._subscriptions_url = (
             "https://archiveofourown.org/users/{0}/subscriptions?page={1:d}"
@@ -271,33 +254,19 @@ class Session(GuestSession):
         self._subscriptions = None
         self._history = None
 
-    def __getstate__(self) -> dict[str, Any]:
+        self.logged_in = True
+
+    @property
+    def _session(self) -> Optional["SessionAPI"]:
         """
-        Return a complete dump of the current session state.
+        Hack to present the same API as most other classes.
 
         :return:
         """
-        d = {}
-        for attr in self.__dict__:
-            if isinstance(self.__dict__[attr], BeautifulSoup):
-                d[attr] = (self.__dict__[attr].encode(), True)
-            else:
-                d[attr] = (self.__dict__[attr], False)
-        return d
-
-    def __setstate__(self, d: dict[str, Any]) -> None:
-        """
-        Load a complete state of the session.
-
-        :param d:
-        :return:
-        """
-        for attr in d:
-            value, issoup = d[attr]
-            if issoup:
-                self.__dict__[attr] = BeautifulSoup(value, "lxml")
-            else:
-                self.__dict__[attr] = value
+        if self.logged_in:
+            return self
+        else:
+            return None
 
     def clear_cache(self) -> None:
         """
@@ -331,7 +300,7 @@ class Session(GuestSession):
                 n = int(text)
         return n
 
-    def get_work_subscriptions(self, use_threading: bool = False) -> list["Work"]:
+    def get_work_subscriptions(self, use_threading: bool = False) -> list[WorkAPI]:
         """
         Get subscribed works. Loads them if they haven't been previously
 
@@ -365,9 +334,13 @@ class Session(GuestSession):
         subs = self.get_subscriptions(use_threading)
         return list(filter(lambda obj: isinstance(obj, User), subs))
 
-    def get_subscriptions(self, use_threading: bool = False) -> list["Work"]:
+    def get_subscriptions(
+        self, use_threading: bool = False
+    ) -> list[Union["User", "Series", WorkAPI]]:
         """
-        Get user's subscriptions. Loads them if they haven't been previously
+        Get user's subscriptions.
+
+        Loads them if they haven't been previously
 
         Returns:
             list: List of subscriptions
@@ -469,7 +442,7 @@ class Session(GuestSession):
         start_page: int = 0,
         max_pages: Optional[int] = None,
         timeout_sleep: Optional[int] = 60,
-    ) -> Optional[list[list["Work", int, datetime.datetime]]]:
+    ) -> Optional[list[list[WorkAPI, int, datetime.datetime]]]:
         """
                Get history works.
 
@@ -506,7 +479,7 @@ class Session(GuestSession):
                             # print(f"Read history page {page+1}")
                             loaded = True
 
-                        except utils.HTTPError:
+                        except errors.HTTPException:
                             # print(f"History being rate limited, sleeping for {timeout_sleep} seconds")
                             time.sleep(timeout_sleep)
 
@@ -587,7 +560,7 @@ class Session(GuestSession):
                 n = int(text)
         return n
 
-    def get_bookmarks(self, use_threading: bool = False) -> list["Work"]:
+    def get_bookmarks(self, use_threading: bool = False) -> list[WorkAPI]:
         """
         Get bookmarked works. Loads them if they haven't been previously
 
@@ -704,22 +677,9 @@ class Session(GuestSession):
 
         return stats
 
-    @staticmethod
-    def str_format(string: str) -> str:
-        """Formats a given string
-
-        Args:
-            string (str): String to format
-
-        Returns:
-            str: Formatted string
-        """
-
-        return string.replace(",", "")
-
     def get_marked_for_later(
         self, sleep: int = 1, timeout_sleep: int = 60
-    ) -> list["Work"]:
+    ) -> list[WorkAPI]:
         """
         Gets every marked for later work
 
@@ -745,10 +705,10 @@ class Session(GuestSession):
             grabbed = False
             while grabbed is False:
                 try:
-                    workPage = self.request(
+                    work_page = self.request(
                         f"https://archiveofourown.org/users/{self.username}/readings?page={page + 1}&show=to-read"
                     )
-                    works_raw = workPage.find_all("li", {"role": "article"})
+                    works_raw = work_page.find_all("li", {"role": "article"})
                     for work in works_raw:
                         try:
                             work_id = int(work.h4.a.get("href").split("/")[2])
@@ -756,7 +716,7 @@ class Session(GuestSession):
                         except AttributeError:
                             pass
                     grabbed = True
-                except utils.HTTPError:
+                except errors.HTTPException:
                     time.sleep(timeout_sleep)
             time.sleep(sleep)
         return works

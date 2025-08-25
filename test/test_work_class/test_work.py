@@ -9,6 +9,7 @@ import ao3
 
 import pytest
 
+import errors
 import utils
 
 
@@ -30,7 +31,7 @@ class TestWorkBadStory:
 
         from ao3.session import GuestSession
 
-        with pytest.raises(utils.WorkNotFoundInvalidIdError):
+        with pytest.raises(errors.WorkNotFoundInvalidIdException):
             ao3.Work(workid, session=GuestSession(), load_chapters=True, load=True)
 
 

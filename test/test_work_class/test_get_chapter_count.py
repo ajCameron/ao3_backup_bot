@@ -1,5 +1,5 @@
 import ao3
-from ao3.utils import AuthError
+from errors import AuthException
 
 import pytest
 
@@ -30,7 +30,7 @@ class TestGetChapterCount:
 
         assert work._soup.find_all("dd") is not None, "Even on the login page, there should be some."
 
-        with pytest.raises(AuthError):
+        with pytest.raises(AuthException):
             # This doesn't seem right
             assert work.nchapters == 0, f"Unexpected chapters count - {work.nchapters}"
 

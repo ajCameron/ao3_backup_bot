@@ -7,7 +7,7 @@ from typing import Any, Union
 import bs4
 import datetime
 
-import utils as utils
+import ao3.utils as utils
 
 
 def __setifnotnone(obj: Any, attr: str, value: Any) -> None:
@@ -23,7 +23,9 @@ def __setifnotnone(obj: Any, attr: str, value: Any) -> None:
         setattr(obj, attr, value)
 
 
-def get_work_from_banner(work: Union[bs4.PageElement, bs4.Tag, bs4.NavigableString, bs4.ResultSet]) -> "Work":
+def get_work_from_banner(
+    work: Union[bs4.PageElement, bs4.Tag, bs4.NavigableString, bs4.ResultSet],
+) -> "Work":
     """
     Take the opening banner of a page and render the work from it.
 

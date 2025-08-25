@@ -44,7 +44,7 @@ Work ID: 14392692
 Chapters: 46
 ```
 
-It's important to note that some works may not be accessible to guest users, and in this case you will get 0 chapters as an output, and the error `AO3.utils.AuthError: This work is only available to registered users of the Archive` if you try to load it. Nontheless, we can still do a lot more with this Work object: Lets try to get the first 20 words of the second chapter.
+It's important to note that some works may not be accessible to guest users, and in this case you will get 0 chapters as an output, and the error `AO3.utils.AuthException: This work is only available to registered users of the Archive` if you try to load it. Nontheless, we can still do a lot more with this Work object: Lets try to get the first 20 words of the second chapter.
 
 ```py3
 import AO3
@@ -225,7 +225,7 @@ Bookmarks: 67
 True
 ```
 
-We successfully left kudos in a work and checked our bookmarks. The `session.refresh_auth_token()` is needed for some activities such as leaving kudos and comments. If it is expired or you forget to call this function, the error `AO3.utils.AuthError: Invalid authentication token. Try calling session.refresh_auth_token()` will be raised.
+We successfully left kudos in a work and checked our bookmarks. The `session.refresh_auth_token()` is needed for some activities such as leaving kudos and comments. If it is expired or you forget to call this function, the error `AO3.utils.AuthException: Invalid authentication token. Try calling session.refresh_auth_token()` will be raised.
 
 You can also comment / leave kudos in a work by calling `Work.leave_kudos()`/`Work.comment()` and provided you have instantiated that object with a session already (`AO3.Work(xxxxxx, session=sess)` or using `Work.set_session()`). This is probably the best way to do so because you will run into less authentication issues (as the work's authenticity token will be used instead).
 
@@ -266,7 +266,7 @@ Comment ID: 312285673
 Replies: 2
 ```
 
-Loading comments takes a very long time so you should try and use it as little as possible. It also causes lots of requests to be sent to the AO3 servers, which might result in getting the error `utils.HTTPError: We are being rate-limited. Try again in a while or reduce the number of requests`. If that happens, you should try to space out your requests or reduce their number. There is also the option to enable request limiting using `AO3.utils.limit_requests()`, which make it so you can't make more than x requests in a certain time window.
+Loading comments takes a very long time so you should try and use it as little as possible. It also causes lots of requests to be sent to the AO3 servers, which might result in getting the error `utils.HTTPException: We are being rate-limited. Try again in a while or reduce the number of requests`. If that happens, you should try to space out your requests or reduce their number. There is also the option to enable request limiting using `AO3.utils.limit_requests()`, which make it so you can't make more than x requests in a certain time window.
 You can also reply to comments using the `Comment.reply()` function, or delete one (if it's yours) using `Comment.delete()`.
 
 
