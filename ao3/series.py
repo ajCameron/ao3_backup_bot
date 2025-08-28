@@ -11,7 +11,7 @@ import ao3.errors
 from ao3 import threadable, utils
 from ao3.common import get_work_from_banner
 from ao3.users import User
-from ao3.api.comment_session_work_api import SeriesAPI, SessionAPI, WorkAPI
+from ao3.api.comment_session_work_api import SeriesAPI, Ao3SessionAPI, WorkAPI
 
 
 class Series(SeriesAPI):
@@ -24,7 +24,7 @@ class Series(SeriesAPI):
     def __init__(
         self,
         seriesid: int,
-        session: Optional["SessionAPI"] = None,
+        session: Optional["Ao3SessionAPI"] = None,
         load: Optional[bool] = True,
     ):
         """Creates a new series object
@@ -62,7 +62,7 @@ class Series(SeriesAPI):
         except Exception as e:
             return f"<Series [{self.id}] - [{e}]>"
 
-    def set_session(self, session: "SessionAPI") -> None:
+    def set_session(self, session: "Ao3SessionAPI") -> None:
         """Sets the session used to make requests for this series
 
         Args:

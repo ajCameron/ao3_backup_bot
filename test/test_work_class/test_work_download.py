@@ -5,8 +5,6 @@ import os
 import tempfile
 
 import ao3
-import errors
-import utils
 
 from .. import get_secrets_dict
 
@@ -26,9 +24,9 @@ class TestDownloadAWork:
         url = "https://archiveofourown.org/works/67764391/chapters/175195496"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import GuestSession
+        from ao3.session import GuestAo3Session
 
-        work = ao3.Work(workid, session=GuestSession(), load_chapters=True, load=True)
+        work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
         with tempfile.TemporaryDirectory() as tmpdirname:
 
@@ -51,9 +49,9 @@ class TestDownloadAWork:
         url = "https://archiveofourown.org/works/67662711/chapters/174904496"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import GuestSession
+        from ao3.session import GuestAo3Session
 
-        work = ao3.Work(workid, session=GuestSession(), load_chapters=True, load=True)
+        work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
         with tempfile.TemporaryDirectory() as tmpdirname:
 
@@ -78,14 +76,14 @@ class TestDownloadAWork:
         workid = ao3.utils.workid_from_url(target_url)
         assert workid == 2, f"Unexpected workid - {workid}"
 
-        from ao3.session import GuestSession
+        from ao3.session import GuestAo3Session
 
-        test_work = ao3.Work(workid, session=GuestSession(), load_chapters=True, load=True)
+        test_work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
         try:
             test_work.download("PDF")
         except Exception as e:
-            assert type(e) is errors.AuthException
+            assert type(e) is ao3.errors.AuthException
 
     def test_download_access_restricted_work_authed_session(self) -> None:
         """
@@ -97,11 +95,11 @@ class TestDownloadAWork:
         url = "https://archiveofourown.org/works/2"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import Session
+        from ao3.session import Ao3Session
 
         secrets_dict = get_secrets_dict()
 
-        test_session = Session(
+        test_session = Ao3Session(
             username=secrets_dict["username"], password=secrets_dict["password"]
         )
 

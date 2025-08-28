@@ -15,7 +15,7 @@ class AO3Exception(Exception):
         Startup the exception.
 
         :param message:
-        :param errors:
+        :param errors
         """
         super().__init__(message)
         self.errors = errors if errors is not None else []
@@ -56,7 +56,7 @@ class NetworkException(AO3Exception):
     Something seems to have gone wrong on a network level.
     """
 
-    def __init__(self, message: str, errors: Optional[list[Exception]] = None) -> None:
+    def __init__(self, message: str, errors: Optional[list[Exception]] = None, url: Optional[str] = None, method: Optional[str] = None) -> None:
         """
         Startup the exception.
 
@@ -64,6 +64,9 @@ class NetworkException(AO3Exception):
         :param errors:
         """
         super().__init__(message=message, errors=errors)
+
+        self.url = url
+        self.method = method
 
 
 class UnexpectedResponseException(NetworkException):
@@ -96,14 +99,24 @@ class HTTPException(NetworkException):
         super().__init__(message=message, errors=errors)
 
 
-class RateLimitException(HTTPException):
+class RateLimitedException(HTTPException):
     """
     Error might be resolved by backing off.
 
     Do that.
     """
 
-    pass
+    def __init__(self, message: str = "", errors: Optional[list[Exception]] = None, retry_after: Optional[float] = None) -> None:
+        """
+        Startup the exception.
+
+        :param message:
+        :param errors:
+        """
+        message = message if message else f"We have hit a rate limit - {retry_after = }"
+
+        super().__init__(message=message, errors=errors)
+        self.retry_after = retry_after
 
 
 class InvalidIdException(AO3Exception):

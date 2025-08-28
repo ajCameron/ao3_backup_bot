@@ -130,7 +130,7 @@ The last important information about the `Work` class is that most of its proper
 ```py3
 import AO3
 
-sess = AO3.GuestSession()
+sess = AO3.GuestAo3Session()
 work = AO3.Work(16721367, sess)
 print(work.kudos)
 work.leave_kudos()
@@ -207,14 +207,14 @@ You can then use the workid to load one of the works you searched for. To get mo
 search.page = 2
 ```
 
-## Session
+## Ao3Session
 
-A lot of actions you might want to take might require an AO3 account. If you already have one, you can access those actions using an AO3.Session object. You start by logging in using your username and password, and then you can use that object to access restricted content.
+A lot of actions you might want to take might require an AO3 account. If you already have one, you can access those actions using an AO3.Ao3Session object. You start by logging in using your username and password, and then you can use that object to access restricted content.
 
 ```py3
 import AO3
 
-session = AO3.Session("username", "password")
+session = AO3.Ao3Session("username", "password")
 print(f"Bookmarks: {session.bookmarks}")
 session.refresh_auth_token()
 print(session.kudos(AO3.Work(18001499, load=False))
@@ -229,7 +229,7 @@ We successfully left kudos in a work and checked our bookmarks. The `session.ref
 
 You can also comment / leave kudos in a work by calling `Work.leave_kudos()`/`Work.comment()` and provided you have instantiated that object with a session already (`AO3.Work(xxxxxx, session=sess)` or using `Work.set_session()`). This is probably the best way to do so because you will run into less authentication issues (as the work's authenticity token will be used instead).
 
-If you would prefer to leave a comment or kudos anonymously, you can use an `AO3.GuestSession` in the same way you'd use a normal session, except you won't be able to check your bookmarks, subscriptions, etc. because you're not actually logged in.
+If you would prefer to leave a comment or kudos anonymously, you can use an `AO3.GuestAo3Session` in the same way you'd use a normal session, except you won't be able to check your bookmarks, subscriptions, etc. because you're not actually logged in.
 
 
 ## Comments

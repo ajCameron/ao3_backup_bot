@@ -1,133 +1,242 @@
-"""
-Wwraps requests in a convenience class for easier use.
+# ao3/requester.py
+from __future__ import annotations
 
-(Mostly makes it harder to hit the rate limits)>
-"""
-
-import threading
 import time
+from typing import Optional, Mapping, Any
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
-from typing import Optional, Union
+from ao3.errors import NetworkException, RateLimitedException
 
 
 class Requester:
-    """Requester object"""
+    """
+    Lightweight request helper that can use an external authenticated session.
+    Adds throttling, typed exceptions, and lazily mounts HTTPAdapter+Retry
+    onto whichever session is actually used for a call.
+    """
 
-    _rqtw: int
-    _timew: int
-    _lock: threading.Lock
-    total: int
+    def __init__(
+        self,
+        requests_per_window: int = 60,
+        window_seconds: float = 60.0,
+        max_retries: int = 3,
+        backoff_factor: float = 0.5,
+        status_forcelist: tuple[int, ...] = (429, 500, 502, 503, 504),
+        allowed_methods: tuple[str, ...] = ("GET", "HEAD", "OPTIONS", "POST"),
+        pool_connections: int = 10,
+        pool_maxsize: int = 10,
+        default_timeout: tuple[float, float] | float = (5.0, 30.0),
+        user_agent: str = "ao3.py (+https://example)",
+        session: Optional[requests.Session] = None,
+    ):
+        # throttle state
+        self._capacity = max(1, int(requests_per_window))
+        self._window = float(window_seconds)
+        self._tokens = self._capacity
+        self._last = time.monotonic()
 
-    def __init__(self, rqtw: int = -1, timew: int = 60) -> None:
-        """Limits the request rate to prevent HTTP 429 (rate limiting) responses.
-        12 request per minute seems to be the limit.
+        # retry/adapter params
+        self._retry = Retry(
+            total=max_retries,
+            backoff_factor=backoff_factor,
+            status_forcelist=status_forcelist,
+            allowed_methods=allowed_methods,
+            raise_on_status=False,
+            respect_retry_after_header=True,
+        )
+        self._pool_connections = pool_connections
+        self._pool_maxsize = pool_maxsize
 
-        Args:
-            rqtw (int, optional): Maximum requests per time window (-1 -> no limit). Defaults to -1.
-            timew (int, optional): Time window (seconds). Defaults to 60.
-        """
+        # defaults
+        self._default_timeout = default_timeout
+        self._default_headers: dict[str, str] = {
+            "User-Agent": user_agent,
+            "Accept": "*/*",
+        }
 
-        self._requests = []
-        self._rqtw = rqtw
-        self._timew = timew
-        self._lock = threading.Lock()
-        self.total = 0
+        self.session: Optional[requests.Session] = session
 
-    def setRQTW(self, value: int) -> None:
-        """
-        Sets the maximum number of requests per time window.
+    # ---- Session helpers ----
+    def attach_session(self, session: requests.Session) -> None:
+        self._ensure_adapters(session)
+        self._ensure_default_headers(session)
+        self.session = session
 
-        :param value:
-        :return:
-        """
-        self._rqtw = value
+    def detach_session(self) -> None:
+        self.session = None
 
-    def setTimeW(self, value: int) -> None:
-        """
-        Sets the time window.
-
-        :param value:
-        :return:
-        """
-        self._timew = value
+    def configure_session(self, session: requests.Session) -> None:
+        """Explicitly mount adapters and headers once on a session."""
+        self._ensure_adapters(session)
+        self._ensure_default_headers(session)
 
     def request(
         self,
         method: str,
         url: str,
-        params: Optional[
-            Union[
-                dict[str, Union[str, int, float, bool]],
-                list[tuple[str, Union[str, int, float, bool]]],
-                bytes,
-            ]
-        ] = None,
+        params: Optional[Mapping[str, Any]] = None,
+        data: Optional[Mapping[str, Any] | bytes] = None,
+        headers: Optional[Mapping[str, str]] = None,
         allow_redirects: bool = True,
-        headers: Optional[dict[str, str]] = None,
-        data: Optional[dict[str, str]] = None,
-        proxies: Optional[dict[str, str]] = None,
-        timeout: Optional[Union[float, tuple[float, float]]] = None,
-        session: Optional["Session"] = None,
+        timeout: Optional[tuple[float, float] | float] = None,
+        proxies: Optional[Mapping[str, str]] = None,
+        force_session: Optional[requests.Session] = None,
     ) -> requests.Response:
-        """Requests a web page once enough time has passed since the last request
-
-        Args:
-            session(requests.Session, optional): Session object to request with
-
-        Returns:
-            requests.Response: Response object
         """
+        Finally request the actual page.
 
-        # We've made a bunch of requests, time to rate limit?
-        if self._rqtw != -1:
-            with self._lock:
-                if len(self._requests) >= self._rqtw:
-                    t = time.time()
-                    # Reduce list to only requests made within the current time window
-                    while len(self._requests):
-                        if t - self._requests[0] >= self._timew:
-                            self._requests.pop(0)  # Older than window, forget about it
-                        else:
-                            break  # Inside window, the rest of them must be too
-                    # Have we used up all available requests within our window?
-                    if len(self._requests) >= self._rqtw:  # Yes
-                        # Wait until the oldest request exits the window, giving us a slot for the new one
-                        time.sleep(self._requests[0] + self._timew - t)
-                        # Now outside window, drop it
-                        self._requests.pop(0)
+        :param method:
+        :param url:
+        :param params:
+        :param data:
+        :param headers:
+        :param allow_redirects:
+        :param timeout:
+        :param proxies:
+        :param force_session:
+        :return:
+        """
+        self._throttle()
 
-                if self._rqtw != -1:
-                    self._requests.append(time.time())
-                self.total += 1
+        sess = force_session or self.session or requests.Session()
 
-        if session is not None:
-            req = session.request(
-                method,
-                url,
-                proxies=proxies,
+        # If we have an external setup session, we just want to use it
+        if force_session is None:
+            self._ensure_adapters(sess)
+            self._ensure_default_headers(sess)
+
+        merged_headers = dict(self._default_headers)
+        if headers:
+            merged_headers.update(headers)
+
+        try:
+            resp = sess.request(
+                method=method,
+                url=url,
                 params=params,
-                allow_redirects=allow_redirects,
                 data=data,
-                headers=headers,
-                timeout=timeout,
-            )
-        else:
-            req = requests.request(
-                method,
-                url,
+                headers=merged_headers,
+                allow_redirects=allow_redirects,
+                timeout=self._default_timeout if timeout is None else timeout,
                 proxies=proxies,
-                params=params,
-                allow_redirects=allow_redirects,
-                data=data,
-                headers=headers,
-                timeout=timeout,
             )
+        except requests.RequestException as e:
+            raise NetworkException(str(e), url=url, method=method) from e
 
-        return req
+        if resp.status_code == 429:
+            retry_after = _parse_retry_after(resp.headers.get("Retry-After"))
+            raise RateLimitedException(retry_after=retry_after)
+
+        return resp
+
+    def get(
+        self,
+        url: str,
+        params: Optional[Mapping[str, Any]] = None,
+        headers: Optional[Mapping[str, str]] = None,
+        allow_redirects: bool = True,
+        timeout: Optional[tuple[float, float] | float] = None,
+        proxies: Optional[Mapping[str, str]] = None,
+        force_session: Optional[requests.Session] = None,
+    ) -> requests.Response:
+        """
+        We're executing a get request.
+
+        :param url:
+        :param params:
+        :param headers:
+        :param allow_redirects:
+        :param timeout:
+        :param proxies:
+        :param force_session:
+        :return:
+        """
+        return self.request(
+            "GET",
+            url,
+            params=params,
+            headers=headers,
+            allow_redirects=allow_redirects,
+            timeout=timeout,
+            proxies=proxies,
+            force_session=force_session,
+        )
+
+    def post(
+        self,
+        url: str,
+        params: Optional[Mapping[str, Any]] = None,
+        data: Optional[Mapping[str, Any] | bytes] = None,
+        headers: Optional[Mapping[str, str]] = None,
+        allow_redirects: bool = True,
+        timeout: Optional[tuple[float, float] | float] = None,
+        proxies: Optional[Mapping[str, str]] = None,
+        force_session: Optional[requests.Session] = None,
+    ) -> requests.Response:
+        return self.request(
+            "POST",
+            url,
+            params=params,
+            data=data,
+            headers=headers,
+            allow_redirects=allow_redirects,
+            timeout=timeout,
+            proxies=proxies,
+            force_session=force_session,
+        )
+
+    # ---- internals ----
+    def _throttle(self) -> None:
+        now = time.monotonic()
+        elapsed = now - self._last
+        self._last = now
+
+        self._tokens = min(self._capacity, self._tokens + elapsed * (self._capacity / self._window))
+        if self._tokens < 1:
+            sleep_for = (1 - self._tokens) * (self._window / self._capacity)
+            time.sleep(sleep_for)
+            self._tokens = 0
+        self._tokens = max(0, self._tokens - 1)
+
+    def _ensure_adapters(self, session: requests.Session) -> None:
+        """
+        Ensure our custom adapter is mounted onto the session.
+
+        :param session:
+        :return:
+        """
+        if getattr(session, "_ao3_adapters_installed", False):
+            return
+        adapter = HTTPAdapter(
+            max_retries=self._retry,
+            pool_connections=self._pool_connections,
+            pool_maxsize=self._pool_maxsize,
+        )
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
+        setattr(session, "_ao3_adapters_installed", True)
+
+    def _ensure_default_headers(self, session: requests.Session) -> None:
+        if getattr(session, "_ao3_headers_installed", False):
+            return
+        for k, v in self._default_headers.items():
+            session.headers.setdefault(k, v)
+        setattr(session, "_ao3_headers_installed", True)
 
 
+def _parse_retry_after(value: str | None) -> float | None:
+    if not value:
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
+# Module-level singleton, same as before
 requester = Requester()
 
-__all__ = ["Requester", "requester"]
+__all__ = ["requester", "Requester"]

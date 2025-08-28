@@ -9,8 +9,8 @@ from math import ceil
 
 from bs4 import BeautifulSoup
 
-import ao3.errors
-from ao3 import threadable, utils
+import ao3
+from ao3 import threadable
 from ao3.common import get_work_from_banner
 from ao3.requester import requester
 
@@ -46,7 +46,7 @@ class Search:
         word_count: Optional[ao3.utils.Constraint] = None,
         language: Optional[str] = "",
         fandoms: Optional[str] = "",
-        rating: Optional[int] = None,
+        rating: Optional[Union[int, str]] = None,
         hits: Optional[ao3.utils.Constraint] = None,
         kudos: Optional[ao3.utils.Constraint] = None,
         crossovers: Optional[bool] = None,
@@ -171,7 +171,7 @@ def search(
     word_count: Optional[ao3.utils.Constraint] = None,
     language: Optional[str] = "",
     fandoms: Optional[str] = "",
-    rating: Optional[int] = None,
+    rating: Optional[Union[int, str]] = None,
     hits: Optional[ao3.utils.Constraint] = None,
     kudos: Optional[ao3.utils.Constraint] = None,
     crossovers: Optional[bool] = None,
@@ -201,7 +201,14 @@ def search(
         characters (str, optional): Characters included in the work. Defaults to "".
         relationships (str, optional): Relationships included in the work. Defaults to "".
         tags (str, optional): Additional tags applied to the work. Defaults to "".
-        rating (int, optional): Rating for the work. 9 for Not Rated, 10 for General Audiences, 11 for Teen And Up Audiences, 12 for Mature, 13 for Explicit. Defaults to None.
+        rating (int, optional):
+                Rating for the work.
+                9 for Not Rated,
+                10 for General Audiences,
+                11 for Teen And Up Audiences,
+                12 for Mature,
+                13 for Explicit.
+                Defaults to None.
         hits (AO3.utils.Constraint, optional): Number of hits. Defaults to None.
         kudos (AO3.utils.Constraint, optional): Number of kudos. Defaults to None.
         crossovers (bool, optional): If specified, if false, exclude crossovers, if true, include only crossovers
@@ -241,6 +248,7 @@ def search(
     if tags != "":
         query.add_field(f"work_search[freeform_names]={tags}")
     if rating is not None:
+        rating = _normalize_rating(rating)
         query.add_field(f"work_search[rating_ids]={rating}")
     if hits is not None:
         query.add_field(f"work_search[hits]={hits}")
@@ -270,7 +278,7 @@ def search(
     else:
         req = session.get(url)
     if req.status_code == 429:
-        raise errors.RateLimitException(
+        raise ao3.errors.RateLimitedException(
             "We are being rate-limited. Try again in a while or reduce the number of requests"
         )
     soup = BeautifulSoup(req.content, features="lxml")
@@ -306,3 +314,38 @@ class Query:
         :return:
         """
         return "&".join(self.fields)
+
+
+RATING_STR_TO_INT = {
+    ("NR", "Not Rated", "All", "U"): 9,
+    ("G", "General", "PG"): 10,
+    ("T", "Teen", "12"): 11,
+    ("M", "Mature", "15"): 12,
+    ("E", "Exp", "Explicit"): 13
+}
+
+
+def _normalize_rating(rating: Union[str, int]) -> int:
+    """
+    Take a rating and render it into canonical form.
+
+    :param rating:
+    :return:
+    """
+    if isinstance(rating, int):
+        if rating not in RATING_STR_TO_INT.keys():
+            raise TypeError(
+                f"{rating = } couldn't be normalised - "
+                f"please pass integer in "
+                f"{[rn for rn in RATING_STR_TO_INT.keys()]}")
+
+    for rt in RATING_STR_TO_INT:
+        if rating.lower() in [_.lower() for _ in rt]:
+            return RATING_STR_TO_INT[rt]
+
+    raise TypeError(
+        f"{rating = } couldn't be normalized. "
+        f"Mapping {RATING_STR_TO_INT = } does not contain it."
+    )
+
+

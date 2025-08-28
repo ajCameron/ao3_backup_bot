@@ -21,9 +21,9 @@ class TestWorkMetadata:
         url = "https://archiveofourown.org/works/67764391/chapters/175195496"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import GuestSession
+        from ao3.session import GuestAo3Session
 
-        work = ao3.Work(workid, session=GuestSession(), load_chapters=True, load=True)
+        work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
         work_metadata = work.metadata
 
@@ -98,9 +98,9 @@ class TestWorkMetadata:
         url = "https://archiveofourown.org/works/67764391/chapters/175195496"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import GuestSession
+        from ao3.session import GuestAo3Session
 
-        work = ao3.Work(workid, session=GuestSession(), load_chapters=True, load=True)
+        work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
         with pytest.raises(errors.AuthException):
             assert work.is_subscribed is False
@@ -115,9 +115,9 @@ class TestWorkMetadata:
         url = "https://archiveofourown.org/works/67764391/chapters/175195496"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import GuestSession
+        from ao3.session import GuestAo3Session
 
-        work = ao3.Work(workid, session=GuestSession(), load_chapters=True, load=True)
+        work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
         assert isinstance(work.summary, str)
         assert len(work.summary) == 347
@@ -132,9 +132,9 @@ class TestWorkMetadata:
         url = "https://archiveofourown.org/works/67764391/chapters/175195496"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import GuestSession
+        from ao3.session import GuestAo3Session
 
-        work = ao3.Work(workid, session=GuestSession(), load_chapters=True, load=True)
+        work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
         assert isinstance(work.start_notes, str)
         assert work.start_notes == "", "There didn't used to be start notes on this work..."
@@ -154,9 +154,9 @@ class TestWorkMetadata:
         url = "https://archiveofourown.org/works/67764391/chapters/175195496"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import GuestSession
+        from ao3.session import GuestAo3Session
 
-        work = ao3.Work(workid, session=GuestSession(), load_chapters=True, load=True)
+        work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
         assert isinstance(work.nchapters, int)
         assert work.nchapters == 3
@@ -176,9 +176,9 @@ class TestWorkMetadata:
         url = "https://archiveofourown.org/works/67764391/chapters/175195496"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import GuestSession
+        from ao3.session import GuestAo3Session
 
-        work = ao3.Work(workid, session=GuestSession(), load_chapters=True, load=True)
+        work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
         assert isinstance(work.hits, int)
         assert work.hits >= 409
@@ -199,9 +199,9 @@ class TestWorkMetadata:
         url = "https://archiveofourown.org/works/67764391/chapters/175195496"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import GuestSession
+        from ao3.session import GuestAo3Session
 
-        work = ao3.Work(workid, session=GuestSession(), load_chapters=True, load=True)
+        work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
         assert isinstance(work.date_published, datetime.date)
         assert work.date_published == datetime.datetime(2025, 7, 18, 0, 0)

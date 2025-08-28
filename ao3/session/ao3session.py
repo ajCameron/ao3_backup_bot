@@ -9,14 +9,14 @@ from typing import Optional, Union
 import requests
 from bs4 import BeautifulSoup
 
-import ao3.errors
+from ao3.errors import UnexpectedResponseException, RateLimitedException, LoginException, HTTPException
 from ao3 import threadable, utils
 from ao3.series import Series
 from ao3.users import User
-from ao3.api.comment_session_work_api import SessionAPI, WorkAPI
+from ao3.api.comment_session_work_api import Ao3SessionAPI, WorkAPI
 
 
-class GuestSession(SessionAPI):
+class GuestAo3Session(Ao3SessionAPI):
     """
     AO3 guest session object
     """
@@ -116,7 +116,7 @@ class GuestSession(SessionAPI):
             req = self.session.get("https://archiveofourown.org")
 
         if req.status_code == 429:
-            raise errors.RateLimitException(
+            raise RateLimitedException(
                 "We are being rate-limited. Try again in a while or reduce the number of requests"
             )
 
@@ -131,7 +131,7 @@ class GuestSession(SessionAPI):
             return
 
         if token is None:
-            raise errors.UnexpectedResponseException("Couldn't refresh token")
+            raise UnexpectedResponseException("Couldn't refresh token")
 
         self.authenticity_token = token.attrs["value"]
 
@@ -144,12 +144,20 @@ class GuestSession(SessionAPI):
         self.session.close()
 
 
-class Session(GuestSession):
+class Ao3Session(GuestAo3Session):
     """
     AO3 session object.
 
     Used for authenticated users.
     """
+
+    is_authed: bool
+
+    username: str
+    # Password is deliberately not stored
+
+    user_url: str
+    login_page_url: str
 
     _subscriptions_url: str
     _bookmarks_url: str
@@ -173,20 +181,20 @@ class Session(GuestSession):
         """
 
         self.logged_in = False
+        self.is_authed = True
+
+        self.username = username
+        self.user_url = "https://archiveofourown.org/users/%s" % self.username
+
+        self.login_page_url = "https://archiveofourown.org/users/login"
 
         super().__init__()
 
-        self.is_authed = True
-        self.username = username
-        self.url = "https://archiveofourown.org/users/%s" % self.username
-
         self.session = requests.Session()
 
-        login_page_url = "https://archiveofourown.org/users/login"
+        soup = self.request(self.login_page_url, force_session=self.session)
 
-        soup = self.request(login_page_url, force_session=self.session)
-
-        assert soup is not None, f"Error when getting page {login_page_url = }"
+        assert soup is not None, f"Error when getting page {self.login_page_url = }"
 
         input_box = soup.find("input")
         assert input_box["name"] == "authenticity_token"
@@ -216,7 +224,7 @@ class Session(GuestSession):
             )
 
         if login_post_resp.status_code == 429:
-            raise errors.RateLimitException(
+            raise RateLimitedException(
                 "We are being rate-limited. Try again in a while or reduce the number of requests"
             )
 
@@ -224,7 +232,7 @@ class Session(GuestSession):
             len(login_post_resp.history) == 1
             and not login_post_resp.history[0].status_code == 302
         ):
-            raise errors.LoginException("Invalid username or password")
+            raise LoginException("Invalid username or password")
 
         # Last check - is the page title telling us auth failed?
         content_type = login_post_resp.headers.get("content-type", "")
@@ -240,7 +248,7 @@ class Session(GuestSession):
         title = login_soup.title.string if login_soup.title else None
 
         if title == "Auth Error | Archive of Our Own":
-            raise errors.LoginException("Invalid username or password")
+            raise LoginException("Invalid username or password")
 
         self._subscriptions_url = (
             "https://archiveofourown.org/users/{0}/subscriptions?page={1:d}"
@@ -257,7 +265,7 @@ class Session(GuestSession):
         self.logged_in = True
 
     @property
-    def _session(self) -> Optional["SessionAPI"]:
+    def _session(self) -> Optional["Ao3SessionAPI"]:
         """
         Hack to present the same API as most other classes.
 
@@ -479,7 +487,7 @@ class Session(GuestSession):
                             # print(f"Read history page {page+1}")
                             loaded = True
 
-                        except errors.HTTPException:
+                        except HTTPException:
                             # print(f"History being rate limited, sleeping for {timeout_sleep} seconds")
                             time.sleep(timeout_sleep)
 
@@ -716,7 +724,7 @@ class Session(GuestSession):
                         except AttributeError:
                             pass
                     grabbed = True
-                except errors.HTTPException:
+                except HTTPException:
                     time.sleep(timeout_sleep)
             time.sleep(sleep)
         return works

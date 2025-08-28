@@ -29,10 +29,10 @@ class TestWorkBadStory:
         workid = ao3.utils.workid_from_url(target_url)
         assert workid == 1, f"Unexpected workid - {workid}"
 
-        from ao3.session import GuestSession
+        from ao3.session import GuestAo3Session
 
         with pytest.raises(errors.WorkNotFoundInvalidIdException):
-            ao3.Work(workid, session=GuestSession(), load_chapters=True, load=True)
+            ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
 
 

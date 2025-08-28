@@ -16,7 +16,7 @@ from bs4 import BeautifulSoup
 from ao3 import threadable, utils
 from ao3.users import User
 
-from api.comment_session_work_api import CommentAPI, WorkAPI, SessionAPI
+from api.comment_session_work_api import CommentAPI, WorkAPI, Ao3SessionAPI
 from ao3.api.object_api import BaseObjectAPI
 
 
@@ -30,7 +30,7 @@ class Comment(CommentAPI, BaseObjectAPI):
         comment_id: Union[str, int],
         parent: Optional[Union["WorkAPI", "Chapter"]] = None,
         parent_comment: Optional["Comment"] = None,
-        session: Optional["SessionAPI"] = None,
+        session: Optional["Ao3SessionAPI"] = None,
         load: bool = True,
     ):
         """Creates a new AO3 comment object

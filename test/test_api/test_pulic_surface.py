@@ -22,10 +22,10 @@ class TestPulicSurfaceImports:
         from ao3 import Chapter
         assert Chapter is not None
 
-        from ao3 import Session
-        assert Session is not None
-        from ao3 import GuestSession
-        assert GuestSession is not None
+        from ao3 import Ao3Session
+        assert Ao3Session is not None
+        from ao3 import GuestAo3Session
+        assert GuestAo3Session is not None
 
         from ao3 import Comment
         assert Comment is not None

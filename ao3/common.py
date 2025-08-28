@@ -38,6 +38,10 @@ def get_work_from_banner(
     from .users import User
     from .works import Work
 
+    comments = None
+    kudos = None
+    workname = None
+
     workid = None
     authors = []
     try:

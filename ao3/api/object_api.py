@@ -74,7 +74,7 @@ class BaseObjectAPI:
                     method="get",
                     url=url,
                     allow_redirects=allow_redirects,
-                    session=self._session.session,
+                    force_session=self._session.session,
                     timeout=timeout,
                     proxies=proxies,
                 )
@@ -85,7 +85,7 @@ class BaseObjectAPI:
                 method="get",
                 url=url,
                 allow_redirects=allow_redirects,
-                session=force_session,
+                force_session=force_session,
                 timeout=timeout,
                 proxies=proxies,
             )
@@ -139,7 +139,7 @@ class BaseObjectAPI:
         from ao3 import utils
 
         if req.status_code == 429:
-            raise errors.RateLimitException(
+            raise errors.RateLimitedException(
                 "We are being rate-limited. Try again in a while or reduce the number of requests"
             )
         return req

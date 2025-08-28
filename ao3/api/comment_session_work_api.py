@@ -29,7 +29,7 @@ class WorkAPI(BaseObjectAPI, abc.ABC):
     id: int
     _soup: Optional[BeautifulSoup]
     _main_page_rep: Optional[requests.Response]
-    _session: "SessionAPI"
+    _session: "Ao3SessionAPI"
 
     _initial_load: bool
     _initial_chapter_load: bool
@@ -37,7 +37,7 @@ class WorkAPI(BaseObjectAPI, abc.ABC):
     def __init__(
         self,
         workid: int,
-        session: "SessionAPI" = None,
+        session: "Ao3SessionAPI" = None,
         load: bool = True,
         load_chapters: bool = True,
     ) -> None:
@@ -84,7 +84,7 @@ class WorkAPI(BaseObjectAPI, abc.ABC):
         """
 
     @abc.abstractmethod
-    def set_session(self, session: "SessionAPI") -> None:
+    def set_session(self, session: "Ao3SessionAPI") -> None:
         """Sets the session used to make requests for this work
 
         Args:
@@ -94,7 +94,7 @@ class WorkAPI(BaseObjectAPI, abc.ABC):
         self._session = session
 
     @property
-    def session(self) -> "SessionAPI":
+    def session(self) -> "Ao3SessionAPI":
         """
         Access the internal session object.
 
@@ -590,7 +590,7 @@ class WorkAPI(BaseObjectAPI, abc.ABC):
         """
 
 
-class SessionAPI(BaseObjectAPI, abc.ABC):
+class Ao3SessionAPI(BaseObjectAPI, abc.ABC):
     """
     Base API for the Session object - used for type hinting.
     """
@@ -819,7 +819,7 @@ class CommentAPI(abc.ABC):
     id: Union[str, int]
     parent: Optional[Union["WorkAPI", "Chapter"]]
     parent_comment: Optional["CommentAPI"]
-    _session: Optional["SessionAPI"]
+    _session: Optional["Ao3SessionAPI"]
     __soup: Optional[BeautifulSoup]
     load: bool
 
@@ -828,7 +828,7 @@ class CommentAPI(abc.ABC):
         comment_id: Union[str, int],
         parent: Optional[Union["WorkAPI", "Chapter"]] = None,
         parent_comment: Optional["CommentAPI"] = None,
-        session: Optional["SessionAPI"] = None,
+        session: Optional["Ao3SessionAPI"] = None,
         load: bool = True,
     ):
         """Creates a new AO3 comment object
@@ -964,13 +964,13 @@ class SeriesAPI(BaseObjectAPI):
 
     id: int
     load: bool
-    _session: SessionAPI
+    _session: Ao3SessionAPI
     _soup: Optional[bs4.BeautifulSoup]
 
     def __init__(
         self,
         seriesid: int,
-        session: Optional["SessionAPI"] = None,
+        session: Optional["Ao3SessionAPI"] = None,
         load: Optional[bool] = True,
     ):
         """Creates a new series object
@@ -1006,7 +1006,7 @@ class SeriesAPI(BaseObjectAPI):
         """
 
     @abc.abstractmethod
-    def set_session(self, session: "SessionAPI") -> None:
+    def set_session(self, session: "Ao3SessionAPI") -> None:
         """Sets the session used to make requests for this series
 
         Args:

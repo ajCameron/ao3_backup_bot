@@ -11,7 +11,7 @@ import requests
 from bs4 import BeautifulSoup
 
 import ao3.errors as errors
-from ao3.api.comment_session_work_api import WorkAPI, SessionAPI
+from ao3.api.comment_session_work_api import WorkAPI, Ao3SessionAPI
 from ao3 import threadable, utils
 from ao3.chapters import Chapter
 from ao3.comments import Comment
@@ -31,12 +31,12 @@ class Work(WorkAPI):
     id: int
     _soup: Optional[BeautifulSoup]
     _main_page_rep: Optional[requests.Response]
-    _session: SessionAPI
+    _session: Ao3SessionAPI
 
     def __init__(
         self,
         workid: int,
-        session: SessionAPI = None,
+        session: Ao3SessionAPI = None,
         load: bool = True,
         load_chapters: bool = True,
     ) -> None:
@@ -115,7 +115,7 @@ class Work(WorkAPI):
             self.load_chapters()
 
     @property
-    def session(self) -> SessionAPI:
+    def session(self) -> Ao3SessionAPI:
         """
         Access the internal session object.
 

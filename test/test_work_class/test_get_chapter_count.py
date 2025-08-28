@@ -22,9 +22,9 @@ class TestGetChapterCount:
 
         assert workid == 14392692, f"Unexpected work id {workid}"
 
-        from ao3.session import GuestSession
+        from ao3.session import GuestAo3Session
 
-        work = ao3.Work(workid, session=GuestSession(), load_chapters=True, load=True)
+        work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
         assert work.restricted is True, "This work should be restricted."
 
@@ -46,9 +46,9 @@ class TestGetChapterCount:
 
         assert workid == 67764391, f"Unexpected work id {workid}"
 
-        from ao3.session import GuestSession
+        from ao3.session import GuestAo3Session
 
-        work = ao3.Work(workid, session=GuestSession(), load_chapters=True, load=True)
+        work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
         # It's age restricted, but not restricted... Not sure if this is a problem
         assert work.restricted is False, "This work should NOT be restricted."

@@ -5,7 +5,7 @@ Need a module structure to get useful test fixtures.
 
 import json
 
-from ao3.session import Session
+from ao3.session import Ao3Session
 
 import os
 
@@ -27,7 +27,7 @@ def get_secrets_dict() -> dict[str, str]:
 
 
 
-def get_authed_session() -> Session:
+def get_authed_session() -> Ao3Session:
     """
     Return an authenticated session.
 
@@ -36,4 +36,4 @@ def get_authed_session() -> Session:
 
     auth_details = get_secrets_dict()
 
-    return Session(username=auth_details["username"], password=auth_details["password"])
+    return Ao3Session(username=auth_details["username"], password=auth_details["password"])

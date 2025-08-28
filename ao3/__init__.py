@@ -28,7 +28,7 @@ from __future__ import annotations
 from ao3 import utils
 from ao3.works import Work
 from ao3.chapters import Chapter
-from ao3.session import Session, GuestSession
+from ao3.session import Ao3Session, GuestAo3Session
 from ao3.comments import Comment
 
 
@@ -42,7 +42,7 @@ except PackageNotFoundError:
     __version__ = "0.0.0.dev0"
 
 # Public classes
-from ao3.session import Session  # Auth, cookies, CSRF, logged-in actions
+from ao3.session import Ao3Session  # Auth, cookies, CSRF, logged-in actions
 from ao3.works import Work  # Core work model (metadata, chapters, download)
 from ao3.chapters import Chapter
 from ao3.comments import Comment
@@ -61,6 +61,7 @@ from ao3 import search
 from ao3.errors import (
     LoginException,
     DownloadException,
+NetworkException
 )
 
 # Optional: expose a canonical list of supported download file types if your
@@ -77,7 +78,7 @@ __all__ = [
     # Version
     "__version__",
     # Core models
-    "Session",
+    "Ao3Session",
     "Work",
     "Chapter",
     "Comment",
@@ -89,6 +90,7 @@ __all__ = [
     # Exceptions
     "LoginException",
     "DownloadException",
+    "NetworkException",
     # Optional constants
     "FILETYPES",
 ]

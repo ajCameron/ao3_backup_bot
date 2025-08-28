@@ -30,11 +30,11 @@ class TestSeriesExists:
 
         target_url = "https://archiveofourown.org/series/4676659"
 
-        from ao3.session import GuestSession
+        from ao3.session import GuestAo3Session
 
         test_series = Series(
             seriesid=4676659,
-            session=GuestSession(),
+            session=GuestAo3Session(),
             load=True
         )
 
@@ -51,11 +51,11 @@ class TestSeriesExists:
         """
         time.sleep(0.5)
 
-        from ao3.session import GuestSession
+        from ao3.session import GuestAo3Session
 
         test_series = Series(
             seriesid=4676659,
-            session=GuestSession(),
+            session=GuestAo3Session(),
             load=True
         )
 
