@@ -34,7 +34,7 @@ class GuestAo3Session(Ao3SessionAPI):
     username: str
     session: requests.Session
 
-    def __init__(self) -> None:
+    def __init__(self, username: str = "") -> None:
         """
         Startup a session object.
         """
@@ -42,7 +42,7 @@ class GuestAo3Session(Ao3SessionAPI):
 
         self.is_authed = False
         self.authenticity_token = None
-        self.username = ""
+        self.username = username
         self.session = requests.Session()
 
     @property
@@ -201,18 +201,16 @@ class Ao3SessionUnPooled(GuestAo3Session):
 
         self.logged_in = False
 
-        super().__init__()
+        super().__init__(username=username)
 
         self.is_authed = True
-        self.username = username
+
         self.url = "https://archiveofourown.org/users/%s" % self.username
 
         self.session = requests.Session()
 
         login_page_url = "https://archiveofourown.org/users/login"
-
         soup = self.request(login_page_url, force_session=self.session)
-
         assert soup is not None, f"Error when getting page {login_page_url = }"
 
         input_box = soup.find("input")
@@ -269,6 +267,9 @@ class Ao3SessionUnPooled(GuestAo3Session):
 
         if title == "Auth Error | Archive of Our Own":
             raise LoginException("Invalid username or password")
+
+        if title == "archiveofourown.org | 525: SSL handshake failed":
+            raise LoginException("525 error - probably cloudflare bug - rotate VPN exit node?")
 
         self._subscriptions_url = (
             "https://archiveofourown.org/users/{0}/subscriptions?page={1:d}"
@@ -898,14 +899,7 @@ class PrototypeSession(GuestAo3Session):
 
         login_page_url = "https://archiveofourown.org/users/login"
 
-        soup = self.request(login_page_url, force_session=self.session)
-
-        assert soup is not None, f"Error when getting page {login_page_url = }"
-
-        input_box = soup.find("input")
-        assert input_box["name"] == "authenticity_token"
-
-        self.authenticity_token = input_box["value"]
+        self.refresh_auth_token(initial_login=True)
 
         payload = {
             "user[login]": username,
