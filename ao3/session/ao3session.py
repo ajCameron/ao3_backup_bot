@@ -166,6 +166,7 @@ class Ao3SessionUnPooled(GuestAo3Session):
 
     user_url: str
     login_page_url: str
+    post_login_title: str
 
     _subscriptions_url: str
     _bookmarks_url: str
@@ -264,6 +265,7 @@ class Ao3SessionUnPooled(GuestAo3Session):
         )
 
         title = login_soup.title.string if login_soup.title else None
+        self.post_login_title = title
 
         if title == "Auth Error | Archive of Our Own":
             raise LoginException("Invalid username or password")
@@ -350,6 +352,16 @@ class Ao3SessionUnPooled(GuestAo3Session):
                 n = int(text)
         return n
 
+    def get_subscription_url(self, page: int) -> str:
+        """
+        Return the URL of an actual subscription page.
+
+        :param page:
+        :return:
+        """
+        url = self._subscriptions_url.format(self.username, page)
+        return url
+
     def get_work_subscriptions(self, use_threading: bool = False) -> list[WorkAPI]:
         """
         Get subscribed works. Loads them if they haven't been previously
@@ -430,8 +442,10 @@ class Ao3SessionUnPooled(GuestAo3Session):
         url = self._subscriptions_url.format(self.username, page)
 
         soup = self.request(url)
+        assert soup is not None, f"Call to subscriptions url at {url = } failed!"
 
         subscriptions = soup.find("dl", {"class": "subscription index group"})
+        assert subscriptions is not None, f"Call to subscriptions url at {url = } failed! title = {soup.title.str}"
 
         for sub in subscriptions.find_all("dt"):
             type_ = "work"

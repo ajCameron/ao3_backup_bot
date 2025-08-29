@@ -23,6 +23,11 @@ class TestSessionLogin:
     """
     We've got some problems logging in - debugging.
     """
+
+
+    _session: None
+
+
     # def test_authed_session_entire_init(self) -> None:
     #     """
     #     Tests we can init a session.
@@ -55,7 +60,7 @@ class TestSessionLogin:
                == \
                "https://archiveofourown.org/users/thomaswpaine/subscriptions?page=1"
 
-        # assert test_session.post_login_title == 'thomaswpaine | Archive of Our Own'
+        assert test_session.post_login_title == 'thomaswpaine | Archive of Our Own'
 
         subbed_works = test_session.get_series_subscriptions(use_threading=False)
 
@@ -76,9 +81,13 @@ class TestSessionLogin:
     #
     #     soup = self.request(login_page_url, force_session=session)
     #
+    #     assert soup.status_code == 200
+    #
     #     assert soup.find("input")["name"] == 'authenticity_token'
     #
     #     authenticity_token = soup.find("input")["value"]
+    #
+    #     assert len(authenticity_token) == 86
     #
     #     payload = {
     #         "user[login]": secrets_dict["username"],
@@ -121,7 +130,7 @@ class TestSessionLogin:
     #     title = soup.title.string if soup.title else None
     #
     #     assert title == 'thomaswpaine | Archive of Our Own'
-    #
+
     # def test_basic_flow_valid_username_and_bad_password(self) -> None:
     #     """
     #     Tests the basic authentication flow.
@@ -250,6 +259,9 @@ class TestSessionLogin:
             self._main_page_rep = req
 
         soup = BeautifulSoup(req.content, "lxml")
+
+        soup.status_code = req.status_code
+
         return soup
 
     def get(
