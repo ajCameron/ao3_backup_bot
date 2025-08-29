@@ -5,7 +5,7 @@ Need a module structure to get useful test fixtures.
 
 import json
 
-from ao3.session import Ao3Session
+from ao3.session.api import Ao3Session
 
 import os
 

@@ -12,7 +12,9 @@ import warnings
 import requests
 
 import errors
-from ao3.session import Ao3Session
+from ao3.session.api import Ao3Session, Ao3SessionUnPooled
+from ao3.session.ao3session import PrototypeSession
+
 
 from . import get_secrets_dict
 
@@ -35,7 +37,7 @@ class TestSessionLogin:
     #
     #     assert test_session.logged_in is True
 
-    def test_authed_session_get_work_subscriptions(self) -> None:
+    def test_authed_unpooled_session_get_work_subscriptions(self) -> None:
         """
         For some reason I'm not sure we're properly logging in.
 
@@ -43,13 +45,19 @@ class TestSessionLogin:
         """
         secrets_dict = get_secrets_dict()
 
-        test_session = Ao3Session(
+        test_session = Ao3SessionUnPooled(
             username=secrets_dict["username"], password=secrets_dict["password"]
         )
 
         assert test_session.logged_in is True
 
-        subbed_works = test_session.get_work_subscriptions(use_threading=False)
+        assert test_session.get_subscriptions_url(1) \
+               == \
+               "https://archiveofourown.org/users/thomaswpaine/subscriptions?page=1"
+
+        # assert test_session.post_login_title == 'thomaswpaine | Archive of Our Own'
+
+        subbed_works = test_session.get_series_subscriptions(use_threading=False)
 
         assert isinstance(subbed_works, list), "Expecting a list back, and didn't get it."
 
