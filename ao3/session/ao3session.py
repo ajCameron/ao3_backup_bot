@@ -893,11 +893,10 @@ class PrototypeSession(GuestAo3Session):
 
         self.is_authed = True
         self.username = username
+        self.login_page_url = "https://archiveofourown.org/users/login"
         self.url = "https://archiveofourown.org/users/%s" % self.username
 
         self.session = requests.Session()
-
-        login_page_url = "https://archiveofourown.org/users/login"
 
         self.refresh_auth_token(initial_login=True)
 
@@ -907,7 +906,7 @@ class PrototypeSession(GuestAo3Session):
             "authenticity_token": self.authenticity_token,
         }
         login_post_resp = self.post(
-            "https://archiveofourown.org/users/login",
+            self.login_page_url,
             params=payload,
             allow_redirects=False,
             force_session=self.session,
