@@ -17,11 +17,8 @@ from ao3.api.comment_session_work_api import Ao3SessionAPI, WorkAPI
 
 # ao3/session.py (only the login bits shown/changed)
 from ao3.session.session_pool import session_pool
-from ao3.requester import requester
+from ao3.requester import requester, Requester
 from ao3.errors import LoginException, NetworkException, UnexpectedResponseException
-
-
-# ... other imports and class defs ...
 
 
 class GuestAo3Session(Ao3SessionAPI):
@@ -177,6 +174,9 @@ class Ao3SessionUnPooled(GuestAo3Session):
     _history: Optional[list[list[WorkAPI, int, datetime.datetime]]]
 
     logged_in: bool = False
+
+    session: requests.Session
+    session_requester: Optional[Requester]
 
     def get_subscriptions_url(self, page: int = 1) -> str:
         """
