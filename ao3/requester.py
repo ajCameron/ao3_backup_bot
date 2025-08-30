@@ -24,7 +24,7 @@ class Requester:
         window_seconds: float = 60.0,
         max_retries: int = 3,
         backoff_factor: float = 0.5,
-        status_forcelist: tuple[int, ...] = (429, 500, 502, 503, 504),
+        status_forcelist: tuple[int, ...] = (429, 500, 502, 503, 504, 525),
         allowed_methods: tuple[str, ...] = ("GET", "HEAD", "OPTIONS", "POST"),
         pool_connections: int = 10,
         pool_maxsize: int = 10,

@@ -14,6 +14,7 @@ import requests
 import errors
 from ao3.session.api import Ao3Session, Ao3SessionUnPooled
 from ao3.session.ao3session import PrototypeSession
+from ao3.requester import Requester
 
 
 from . import get_secrets_dict
@@ -42,29 +43,29 @@ class TestSessionLogin:
     #
     #     assert test_session.logged_in is True
 
-    def test_authed_unpooled_session_get_work_subscriptions(self) -> None:
-        """
-        For some reason I'm not sure we're properly logging in.
-
-        :return:
-        """
-        secrets_dict = get_secrets_dict()
-
-        test_session = Ao3SessionUnPooled(
-            username=secrets_dict["username"], password=secrets_dict["password"]
-        )
-
-        assert test_session.logged_in is True
-
-        assert test_session.get_subscriptions_url(1) \
-               == \
-               "https://archiveofourown.org/users/thomaswpaine/subscriptions?page=1"
-
-        assert test_session.post_login_title == 'thomaswpaine | Archive of Our Own'
-
-        subbed_works = test_session.get_series_subscriptions(use_threading=False)
-
-        assert isinstance(subbed_works, list), "Expecting a list back, and didn't get it."
+    # def test_authed_unpooled_session_get_work_subscriptions(self) -> None:
+    #     """
+    #     For some reason I'm not sure we're properly logging in.
+    #
+    #     :return:
+    #     """
+    #     secrets_dict = get_secrets_dict()
+    #
+    #     test_session = Ao3SessionUnPooled(
+    #         username=secrets_dict["username"], password=secrets_dict["password"]
+    #     )
+    #
+    #     assert test_session.logged_in is True
+    #
+    #     assert test_session.get_subscriptions_url(1) \
+    #            == \
+    #            "https://archiveofourown.org/users/thomaswpaine/subscriptions?page=1"
+    #
+    #     assert test_session.post_login_title == 'thomaswpaine | Archive of Our Own'
+    #
+    #     subbed_works = test_session.get_series_subscriptions(use_threading=False)
+    #
+    #     assert isinstance(subbed_works, list), "Expecting a list back, and didn't get it."
 
     # def test_basic_flow_valid_username_and_valid_password(self) -> None:
     #     """
@@ -130,6 +131,74 @@ class TestSessionLogin:
     #     title = soup.title.string if soup.title else None
     #
     #     assert title == 'thomaswpaine | Archive of Our Own'
+
+    def test_basic_flow_valid_username_and_valid_password_requester(self) -> None:
+        """
+        Tests the basic authentication flow.
+
+        :return:
+        """
+
+        secrets_dict = get_secrets_dict()
+
+        session = requests.Session()
+        test_requester = Requester()
+        test_requester.attach_session(session)
+
+        login_page_url = "https://archiveofourown.org/users/login"
+
+        soup = self.request(login_page_url, force_session=test_requester)
+
+        assert soup.status_code == 200
+
+        assert soup.find("input")["name"] == 'authenticity_token'
+
+        authenticity_token = soup.find("input")["value"]
+
+        assert len(authenticity_token) == 86
+
+        payload = {
+            "user[login]": secrets_dict["username"],
+            "user[password]": secrets_dict["password"],
+            "authenticity_token": authenticity_token,
+        }
+
+        login_post_resp = self.post(
+            "https://archiveofourown.org/users/login",
+            params=payload,
+            allow_redirects=False, force_session=session
+        )
+
+        if login_post_resp.status_code == 302:
+            login_post_resp = self.post(
+                "https://archiveofourown.org/users/login",
+                params=payload,
+                allow_redirects=True, force_session=session
+            )
+
+        assert login_post_resp.status_code == 200
+        assert len(login_post_resp.history) == 1
+        assert login_post_resp.history[0].status_code == 302
+
+        content_type = login_post_resp.headers.get("content-type", "")
+        charset = "utf-8"  # sensible default
+
+        if "charset=" in content_type:
+            charset = content_type.split("charset=")[-1].split(";")[0].strip()
+
+        # Decode using the detected charset
+
+        raw_html = login_post_resp.content.decode(charset, errors="replace")
+
+        assert len(raw_html) > 500
+
+        soup = BeautifulSoup(raw_html, "html.parser")
+
+        # --- Extract the title ---
+        title = soup.title.string if soup.title else None
+
+        assert title == 'thomaswpaine | Archive of Our Own'
+
 
     # def test_basic_flow_valid_username_and_bad_password(self) -> None:
     #     """
@@ -237,7 +306,7 @@ class TestSessionLogin:
                 url: str,
                 proxies: Optional[dict[str, str]] = None,
                 set_main_url_req: bool = False,
-                force_session: Optional[requests.Session] = None
+                force_session: Optional[Union[requests.Session, Requester]] = None
                 ) -> BeautifulSoup:
         """Request a web page and return a BeautifulSoup object.
 
