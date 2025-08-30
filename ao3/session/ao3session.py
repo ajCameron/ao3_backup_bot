@@ -214,9 +214,19 @@ class Ao3SessionUnPooled(GuestAo3Session):
         assert soup is not None, f"Error when getting page {login_page_url = }"
 
         input_box = soup.find("input")
+        assert input_box is not None, f"Error finding input box during token refresh."
         assert input_box["name"] == "authenticity_token"
 
         self.authenticity_token = input_box["value"]
+
+        self.do_login(username=username, password=password)
+
+    def do_login(self, username: str, password: str) -> None:
+        """
+        We have all the components - actually log in with this session.
+
+        :return:
+        """
 
         payload = {
             "user[login]": username,
@@ -226,19 +236,9 @@ class Ao3SessionUnPooled(GuestAo3Session):
         login_post_resp = self.post(
             "https://archiveofourown.org/users/login",
             params=payload,
-            allow_redirects=False,
+            allow_redirects=True,
             force_session=self.session,
         )
-        # Fallback to allowing redirects
-        # Something about the login process seems to have changed
-        if login_post_resp.status_code == 302:
-
-            login_post_resp = self.post(
-                "https://archiveofourown.org/users/login",
-                params=payload,
-                allow_redirects=True,
-                force_session=self.session,
-            )
 
         if login_post_resp.status_code == 429:
             raise RateLimitedException(
@@ -284,6 +284,11 @@ class Ao3SessionUnPooled(GuestAo3Session):
         self._history = None
 
         self.logged_in = True
+
+        # Mostly for testing - just want to be sure nothing else happens too fast
+        time.sleep(1)
+
+
 
     def request(
         self,

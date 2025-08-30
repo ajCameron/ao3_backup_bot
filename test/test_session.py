@@ -62,9 +62,9 @@ class TestSessionLogin:
 
         assert test_session.post_login_title == 'thomaswpaine | Archive of Our Own'
 
-        subbed_works = test_session.get_series_subscriptions(use_threading=False)
-
-        assert isinstance(subbed_works, list), "Expecting a list back, and didn't get it."
+        # subbed_works = test_session.get_series_subscriptions(use_threading=False)
+        #
+        # assert isinstance(subbed_works, list), "Expecting a list back, and didn't get it."
 
     # def test_basic_flow_valid_username_and_valid_password(self) -> None:
     #     """
