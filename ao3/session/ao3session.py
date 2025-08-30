@@ -214,7 +214,7 @@ class Ao3SessionUnPooled(GuestAo3Session):
         assert soup is not None, f"Error when getting page {login_page_url = }"
 
         input_box = soup.find("input")
-        assert input_box is not None, f"Error finding input box during token refresh."
+        assert input_box is not None, f"Error finding input box during token refresh. - {soup.title.string = }"
         assert input_box["name"] == "authenticity_token"
 
         self.authenticity_token = input_box["value"]
@@ -286,9 +286,7 @@ class Ao3SessionUnPooled(GuestAo3Session):
         self.logged_in = True
 
         # Mostly for testing - just want to be sure nothing else happens too fast
-        time.sleep(1)
-
-
+        time.sleep(5)
 
     def request(
         self,
