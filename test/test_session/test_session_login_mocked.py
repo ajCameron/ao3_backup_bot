@@ -1,7 +1,7 @@
 
 import requests
 from bs4 import BeautifulSoup
-from ao3.session import GuestAo3Session
+from ao3.session.api import GuestAo3Session
 
 LOGIN_PAGE = '''
 <html><body>

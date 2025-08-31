@@ -5,19 +5,20 @@ Debugging the auth flow from session.
 
 from typing import Optional, Union
 
+import pytest
 from bs4 import BeautifulSoup
 
 
 import warnings
 import requests
 
-import errors
+from ao3.errors import LoginException, AuthException
 from ao3.session.api import Ao3Session, Ao3SessionUnPooled
 from ao3.session.ao3session import PrototypeSession
 from ao3.requester import Requester
 
 
-from . import get_secrets_dict
+from test import get_secrets_dict
 
 
 class TestSessionLogin:
@@ -25,49 +26,36 @@ class TestSessionLogin:
     We've got some problems logging in - debugging.
     """
 
-
     _session: None
 
+    def test_authed_unpooled_session_get_work_subscriptions(self) -> None:
+        """
+        For some reason I'm not sure we're properly logging in.
 
-    # def test_authed_session_entire_init(self) -> None:
-    #     """
-    #     Tests we can init a session.
-    #
-    #     :return:
-    #     """
-    #     secrets_dict = get_secrets_dict()
-    #
-    #     test_session = Ao3Session(
-    #         username=secrets_dict["username"], password=secrets_dict["password"]
-    #     )
-    #
-    #     assert test_session.logged_in is True
+        :return:
+        """
+        secrets_dict = get_secrets_dict()
 
-    # def test_authed_unpooled_session_get_work_subscriptions(self) -> None:
-    #     """
-    #     For some reason I'm not sure we're properly logging in.
-    #
-    #     :return:
-    #     """
-    #     secrets_dict = get_secrets_dict()
-    #
-    #     test_session = Ao3SessionUnPooled(
-    #         username=secrets_dict["username"], password=secrets_dict["password"]
-    #     )
-    #
-    #     assert test_session.logged_in is True
-    #
-    #     assert test_session.get_subscriptions_url(1) \
-    #            == \
-    #            "https://archiveofourown.org/users/thomaswpaine/subscriptions?page=1"
-    #
-    #     assert test_session.post_login_title == 'thomaswpaine | Archive of Our Own'
-    #
-    #     subbed_works = test_session.get_series_subscriptions(use_threading=False)
-    #
-    #     assert isinstance(subbed_works, list), "Expecting a list back, and didn't get it."
+        test_session = Ao3SessionUnPooled(
+            username=secrets_dict["username"], password=secrets_dict["password"]
+        )
 
-    # def test_basic_flow_valid_username_and_valid_password(self) -> None:
+        assert test_session.logged_in is True
+
+        assert test_session.get_subscriptions_url(1) \
+               == \
+               "https://archiveofourown.org/users/thomaswpaine/subscriptions?page=1"
+
+        assert test_session.post_login_title == 'thomaswpaine | Archive of Our Own'
+
+        subbed_series = test_session.get_series_subscriptions(use_threading=False)
+        assert isinstance(subbed_series, list), "Expecting a list back, and didn't get it."
+
+        subbed_works = test_session.get_work_subscriptions(use_threading=False)
+        assert isinstance(subbed_works, list), "Expecting a list back, and didn't get it."
+
+
+    # def test_basic_flow_valid_username_and_valid_password_direct_session(self) -> None:
     #     """
     #     Tests the basic authentication flow.
     #
@@ -199,8 +187,7 @@ class TestSessionLogin:
 
         assert title == 'thomaswpaine | Archive of Our Own'
 
-
-    # def test_basic_flow_valid_username_and_bad_password(self) -> None:
+    # def test_basic_flow_valid_username_and_bad_password_direct_session(self) -> None:
     #     """
     #     Tests the basic authentication flow.
     #
@@ -261,7 +248,7 @@ class TestSessionLogin:
     #
     #     assert title == "Auth Error | Archive of Our Own"
 
-    # def test_basic_flow_valid_username_and_password(self) -> None:
+    # def test_basic_flow_valid_username_and_password_direct_session(self) -> None:
     #     """
     #     Tests the basic authentication flow.
     #
