@@ -13,7 +13,34 @@ from bs4 import BeautifulSoup
 import errors
 
 
+class BasicSessionAPI:
+    """
+    Very basic stub to mock the only important bit of Ao3Session for this purpose.
+    """
+    @property
+    def session(self) -> Optional[requests.session]:
+        """
+        Should mock the interface we need,
+
+        :return:
+        """
+        raise NotImplementedError("Actually need a session.")
+
+
 class BaseObjectAPI:
+    """
+    Contains the basic, internet connection methods which all classes are going to end up using.
+    """
+
+    _session: Optional[BasicSessionAPI]
+
+    def __int__(self):
+        """
+        Just a stub.
+
+        :return:
+        """
+        self._session = None
 
     def request(
         self,
@@ -35,10 +62,12 @@ class BaseObjectAPI:
         """
 
         req = self.get(url, proxies=proxies, force_session=force_session)
+
         if len(req.content) > 650000:
             warnings.warn(
                 "This work is very big and might take a very long time to load"
             )
+
         if set_main_url_req:
             self._main_page_rep = req
 
@@ -60,9 +89,12 @@ class BaseObjectAPI:
 
         from ao3.requester import requester
 
+        # We have not been provided a session to force use
         if force_session is None:
 
+            # If we have an inbuilt session, then use that
             if self._session is None:
+
                 req = requester.request(
                     method="get",
                     url=url,
@@ -71,6 +103,7 @@ class BaseObjectAPI:
                     proxies=proxies,
                 )
             else:
+
                 req = requester.request(
                     method="get",
                     url=url,
@@ -80,6 +113,7 @@ class BaseObjectAPI:
                     proxies=proxies,
                 )
 
+        # We have been provided a force session - use it
         else:
 
             req = requester.request(
@@ -119,23 +153,38 @@ class BaseObjectAPI:
         Returns:
             requests.Request
         """
+        from ao3.requester import requester
 
         if force_session is None:
 
-            req = self.session.post(
-                url=url,
-                params=params,
-                allow_redirects=allow_redirects,
-                headers=headers,
-                data=data,
-            )
+            if self._session is None:
+
+                req = requester.post(
+                    url=url,
+                    params=params,
+                    allow_redirects=allow_redirects,
+                    headers=headers,
+                    data=data,
+                )
+
+            else:
+
+                req = requester.post(
+                    url=url,
+                    params=params,
+                    allow_redirects=allow_redirects,
+                    force_session=self._session.session,
+                    headers=headers,
+                    data=data,
+                )
 
         else:
 
-            req = force_session.post(
+            req = requester.post(
                 url=url,
                 params=params,
                 allow_redirects=allow_redirects,
+                force_session=force_session,
                 headers=headers,
                 data=data,
             )

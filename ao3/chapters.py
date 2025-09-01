@@ -41,6 +41,8 @@ class Chapter(BaseObjectAPI):
         :param session: Session object used for querying the archive.
         :param load: Preload the chapter?
         """
+        super().__init__()
+
         self._session = session
         self._work = work
         self.id = chapterid

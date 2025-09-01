@@ -32,6 +32,8 @@ class User(BaseObjectAPI):
             load (bool, optional): If true, the user is loaded on initialization. Defaults to True.
         """
 
+        super().__init__()
+
         self.username = username
         self._session = session
         self._soup_works = None

@@ -16,7 +16,7 @@ from bs4 import BeautifulSoup
 from ao3 import threadable, utils
 from ao3.users import User
 
-from api.comment_session_work_api import CommentAPI, WorkAPI, Ao3SessionAPI
+from ao3.api.comment_session_work_api import CommentAPI, WorkAPI, Ao3SessionAPI
 from ao3.api.object_api import BaseObjectAPI
 
 
@@ -43,7 +43,8 @@ class Comment(CommentAPI, BaseObjectAPI):
             load (boolean, optional):  If true, the comment is loaded on initialization. Defaults to True.
         """
 
-        super().__init__(
+        BaseObjectAPI.__init__()
+        CommentAPI.__init__(self=self,
             comment_id=comment_id,
             parent=parent,
             parent_comment=parent_comment,
