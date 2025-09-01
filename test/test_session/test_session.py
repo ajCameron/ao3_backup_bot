@@ -12,9 +12,8 @@ from bs4 import BeautifulSoup
 import warnings
 import requests
 
-from ao3.errors import LoginException, AuthException
+from ao3.errors import LoginException, AuthException, HTTPException
 from ao3.session.api import Ao3Session, Ao3SessionUnPooled
-from ao3.session.ao3session import PrototypeSession
 from ao3.requester import Requester
 
 
@@ -365,7 +364,7 @@ class TestSessionLogin:
         from ao3 import utils
 
         if req.status_code == 429:
-            raise errors.HTTPException(
+            raise HTTPException(
                 "We are being rate-limited. Try again in a while or reduce the number of requests"
             )
         return req

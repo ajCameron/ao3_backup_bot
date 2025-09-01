@@ -16,12 +16,13 @@ from ao3.errors import LoginException, AuthException
 from ao3.session.api import Ao3Session, Ao3SessionUnPooled
 from ao3.requester import Requester
 from ao3.works import Work
+from ao3.account import Account
 
 
 from test import get_secrets_dict
 
 
-class TestSessionLoginFollowedByCalls:
+class TestSessionLoginFollowedByAccountCalls:
     """
     We're going to login to a session and then we're going to run all methods that touch the site.
 
@@ -31,7 +32,7 @@ class TestSessionLoginFollowedByCalls:
 
     _session: None
 
-    def test_authed_unpooled_session_get_work_subscriptions(self) -> None:
+    def test_authed_unpooled_account_get_work_subscriptions(self) -> None:
         """
         For some reason I'm not sure we're properly logging in.
 
@@ -45,19 +46,21 @@ class TestSessionLoginFollowedByCalls:
 
         assert test_session.logged_in is True
 
-        assert test_session.get_subscriptions_url(1) \
+        test_account = Account(session=test_session)
+
+        assert test_account.get_subscriptions_url(1) \
                == \
                "https://archiveofourown.org/users/thomaswpaine/subscriptions?page=1"
 
         assert test_session.post_login_title == 'thomaswpaine | Archive of Our Own'
 
-        subbed_series = test_session.get_series_subscriptions(use_threading=False)
+        subbed_series = test_account.get_series_subscriptions(use_threading=False)
         assert isinstance(subbed_series, list), "Expecting a list back, and didn't get it."
 
-        subbed_works = test_session.get_work_subscriptions(use_threading=False)
+        subbed_works = test_account.get_work_subscriptions(use_threading=False)
         assert isinstance(subbed_works, list), "Expecting a list back, and didn't get it."
 
-        full_history = test_session.get_history()
+        full_history = test_account.get_history()
         assert isinstance(full_history, list)
         for work_tuple in full_history:
             assert isinstance(work_tuple, list)
@@ -66,11 +69,11 @@ class TestSessionLoginFollowedByCalls:
             assert isinstance(work_tuple[1], int)
             assert isinstance(work_tuple[2], datetime.datetime)
 
-        bookmark_count = test_session.bookmarks
+        bookmark_count = test_account.bookmarks
         assert isinstance(bookmark_count, int)
         assert bookmark_count > 0
 
-        all_bookmarks = test_session.get_bookmarks(use_threading=False)
+        all_bookmarks = test_account.get_bookmarks(use_threading=False)
         assert isinstance(all_bookmarks, list)
         for book_mark in all_bookmarks:
             assert isinstance(book_mark, Work)

@@ -28,6 +28,7 @@ class BaseObjectAPI:
             url (str): Url to request
             proxies: Provide proxy options to the underlying call
             set_main_url_req: If True, will set the soup for the main page to this
+            force_session: If True, then
 
         Returns:
             bs4.BeautifulSoup: BeautifulSoup object representing the requested page's html
@@ -120,6 +121,7 @@ class BaseObjectAPI:
         """
 
         if force_session is None:
+
             req = self.session.post(
                 url=url,
                 params=params,
@@ -127,7 +129,9 @@ class BaseObjectAPI:
                 headers=headers,
                 data=data,
             )
+
         else:
+
             req = force_session.post(
                 url=url,
                 params=params,
