@@ -30,7 +30,7 @@ class TestSeriesExists:
 
         target_url = "https://archiveofourown.org/series/4676659"
 
-        from ao3.session import GuestAo3Session
+        from ao3.session.api import GuestAo3Session
 
         test_series = Series(
             seriesid=4676659,
@@ -51,7 +51,7 @@ class TestSeriesExists:
         """
         time.sleep(0.5)
 
-        from ao3.session import GuestAo3Session
+        from ao3.session.api import GuestAo3Session
 
         test_series = Series(
             seriesid=4676659,
@@ -80,11 +80,6 @@ class TestSeriesExists:
         )
 
         subbed_property = test_series.is_subscribed
-
-
-
-
-
 
     def test_can_subscribe_authed_session(self) -> None:
         """

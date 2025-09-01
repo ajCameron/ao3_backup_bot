@@ -5,7 +5,6 @@ import datetime
 
 import ao3
 import errors
-import utils
 
 
 class TestWorkMetadata:
@@ -21,7 +20,7 @@ class TestWorkMetadata:
         url = "https://archiveofourown.org/works/67764391/chapters/175195496"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import GuestAo3Session
+        from ao3.session.api import GuestAo3Session
 
         work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
@@ -57,17 +56,17 @@ class TestWorkMetadata:
                                            "As a critical mission to Cardassia Prime hangs in the balance, " \
                                            "T'Lyn enacts a dangerous plan to uncover the truth before it's too late.\n"
         assert work_metadata["tags"] == ['Suicide Attempt',
- 'Self-Harm',
- 'Major Character Injury',
- 'Hurt/Comfort',
- 'Attempted Murder',
- 'Murder Mystery',
- 'Cardassian Species (Star Trek)',
- 'Bendii Syndrome (Star Trek)',
- 'Self-Doubt',
- 'Mind Control',
- 'Vulcan Mind Melds (Star Trek)',
- 'Mind Meld']
+                                         'Self-Harm',
+                                         'Major Character Injury',
+                                         'Hurt/Comfort',
+                                         'Attempted Murder',
+                                         'Murder Mystery',
+                                         'Cardassian Species (Star Trek)',
+                                         'Bendii Syndrome (Star Trek)',
+                                         'Self-Doubt',
+                                         'Mind Control',
+                                         'Vulcan Mind Melds (Star Trek)',
+                                         'Mind Meld']
         assert work_metadata["title"] == 'Voices In Her Head'
         assert work_metadata["warnings"] == ['Graphic Depictions Of Violence']
         assert work_metadata["id"] == 67764391
@@ -98,7 +97,7 @@ class TestWorkMetadata:
         url = "https://archiveofourown.org/works/67764391/chapters/175195496"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import GuestAo3Session
+        from ao3.session.api import GuestAo3Session
 
         work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
@@ -115,7 +114,7 @@ class TestWorkMetadata:
         url = "https://archiveofourown.org/works/67764391/chapters/175195496"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import GuestAo3Session
+        from ao3.session.api import GuestAo3Session
 
         work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
@@ -132,7 +131,7 @@ class TestWorkMetadata:
         url = "https://archiveofourown.org/works/67764391/chapters/175195496"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import GuestAo3Session
+        from ao3.session.api import GuestAo3Session
 
         work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
@@ -154,7 +153,7 @@ class TestWorkMetadata:
         url = "https://archiveofourown.org/works/67764391/chapters/175195496"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import GuestAo3Session
+        from ao3.session.api import GuestAo3Session
 
         work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
@@ -176,7 +175,7 @@ class TestWorkMetadata:
         url = "https://archiveofourown.org/works/67764391/chapters/175195496"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import GuestAo3Session
+        from ao3.session.api import GuestAo3Session
 
         work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
@@ -199,7 +198,7 @@ class TestWorkMetadata:
         url = "https://archiveofourown.org/works/67764391/chapters/175195496"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import GuestAo3Session
+        from ao3.session.api import GuestAo3Session
 
         work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 

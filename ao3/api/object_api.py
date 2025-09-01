@@ -33,6 +33,7 @@ class BaseObjectAPI:
     """
 
     _session: Optional[BasicSessionAPI]
+    _main_page_rep: Optional[requests.Response]
 
     def __int__(self):
         """
@@ -41,6 +42,7 @@ class BaseObjectAPI:
         :return:
         """
         self._session = None
+        self._main_page_rep = None
 
     def request(
         self,
@@ -125,8 +127,6 @@ class BaseObjectAPI:
                 proxies=proxies,
             )
 
-        from ao3 import utils
-
         if req.status_code == 429:
             raise errors.HTTPException(
                 "We are being rate-limited. Try again in a while or reduce the number of requests"
@@ -188,8 +188,6 @@ class BaseObjectAPI:
                 headers=headers,
                 data=data,
             )
-
-        from ao3 import utils
 
         if req.status_code == 429:
             raise errors.RateLimitedException(

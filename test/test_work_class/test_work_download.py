@@ -24,7 +24,7 @@ class TestDownloadAWork:
         url = "https://archiveofourown.org/works/67764391/chapters/175195496"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import GuestAo3Session
+        from ao3.session.api import GuestAo3Session
 
         work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
@@ -49,7 +49,7 @@ class TestDownloadAWork:
         url = "https://archiveofourown.org/works/67662711/chapters/174904496"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import GuestAo3Session
+        from ao3.session.api import GuestAo3Session
 
         work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
@@ -76,7 +76,7 @@ class TestDownloadAWork:
         workid = ao3.utils.workid_from_url(target_url)
         assert workid == 2, f"Unexpected workid - {workid}"
 
-        from ao3.session import GuestAo3Session
+        from ao3.session.api import GuestAo3Session
 
         test_work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
@@ -95,7 +95,7 @@ class TestDownloadAWork:
         url = "https://archiveofourown.org/works/2"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import Ao3Session
+        from ao3.session.api import Ao3Session
 
         secrets_dict = get_secrets_dict()
 

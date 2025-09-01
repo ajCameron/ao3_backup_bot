@@ -17,7 +17,7 @@ class TestWorkMetadata:
         url = "https://archiveofourown.org/works/67764391/chapters/175195496"
         workid = ao3.utils.workid_from_url(url)
 
-        from ao3.session import GuestAo3Session
+        from ao3.session.api import GuestAo3Session
 
         work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 

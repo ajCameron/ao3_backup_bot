@@ -22,7 +22,7 @@ class TestGetChapterCount:
 
         assert workid == 14392692, f"Unexpected work id {workid}"
 
-        from ao3.session import GuestAo3Session
+        from ao3.session.api import GuestAo3Session
 
         work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
@@ -46,7 +46,7 @@ class TestGetChapterCount:
 
         assert workid == 67764391, f"Unexpected work id {workid}"
 
-        from ao3.session import GuestAo3Session
+        from ao3.session.api import GuestAo3Session
 
         work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
