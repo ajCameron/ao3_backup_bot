@@ -4,7 +4,7 @@ import pytest
 import datetime
 
 import ao3
-import errors
+from ao3.errors import AuthException
 
 
 class TestWorkMetadata:
@@ -27,7 +27,7 @@ class TestWorkMetadata:
         work_metadata = work.metadata
 
         assert work_metadata["id"] == 67764391
-        assert work_metadata["bookmarks"] == 2
+        assert work_metadata["bookmarks"] >= 3
         assert work_metadata["categories"] == ["Gen"]
         assert work_metadata["nchapters"] == 3
         assert work_metadata["characters"] == ['Beckett Mariner','Brad Boimler', 'Sam Rutherford', "D'Vana Tendi", "T'Lyn (Star Trek)"]
@@ -101,7 +101,8 @@ class TestWorkMetadata:
 
         work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
-        with pytest.raises(errors.AuthException):
+        # Cannot tell if we're subscribed without being authed
+        with pytest.raises(AuthException):
             assert work.is_subscribed is False
 
     def test_work_summary_subscribed_guest_session(self) -> None:

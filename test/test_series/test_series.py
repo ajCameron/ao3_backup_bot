@@ -8,9 +8,8 @@ import time
 
 import pytest
 
-import ao3.utils
-import errors
 from ao3.series import Series
+from ao3.errors import AuthException
 
 from .. import get_authed_session
 
@@ -59,10 +58,10 @@ class TestSeriesExists:
             load=True
         )
 
-        with pytest.raises(errors.AuthException):
+        with pytest.raises(AuthException):
             test_series.subscribe()
 
-        with pytest.raises(errors.AuthException):
+        with pytest.raises(AuthException):
             test_series.unsubscribe()
 
     def test_check_is_subscribed_authed_session(self) -> None:

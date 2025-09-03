@@ -1,5 +1,5 @@
 import ao3
-from errors import AuthException
+from ao3.errors import AuthException
 
 import pytest
 

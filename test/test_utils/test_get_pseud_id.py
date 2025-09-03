@@ -2,7 +2,7 @@
 import pytest
 
 import ao3
-import errors
+from ao3.errors import AuthException
 from ao3.utils import get_pseud_id
 
 
@@ -23,5 +23,5 @@ class TestWorkMetadata:
 
         work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
 
-        with pytest.raises(errors.AuthException):
+        with pytest.raises(AuthException):
             assert get_pseud_id(work) == ""

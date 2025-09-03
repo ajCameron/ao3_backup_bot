@@ -10,7 +10,6 @@ import warnings
 import bs4
 from bs4 import BeautifulSoup
 
-import errors
 
 
 class BasicSessionAPI:
@@ -94,7 +93,6 @@ class BaseObjectAPI:
         # We have not been provided a session to force use
         if force_session is None:
 
-            # If we have an inbuilt session, then use that
             if self._session is None:
 
                 req = requester.request(
@@ -106,6 +104,7 @@ class BaseObjectAPI:
                 )
             else:
 
+                # If we have an inbuilt session, then use that
                 req = requester.request(
                     method="get",
                     url=url,
@@ -131,6 +130,7 @@ class BaseObjectAPI:
             raise errors.HTTPException(
                 "We are being rate-limited. Try again in a while or reduce the number of requests"
             )
+
         return req
 
     def post(

@@ -43,7 +43,7 @@ class Comment(CommentAPI, BaseObjectAPI):
             load (boolean, optional):  If true, the comment is loaded on initialization. Defaults to True.
         """
 
-        BaseObjectAPI.__init__()
+        BaseObjectAPI.__init__(self)
         CommentAPI.__init__(self=self,
             comment_id=comment_id,
             parent=parent,

@@ -14,6 +14,7 @@ from ao3.errors import NetworkException, RateLimitedException
 class Requester:
     """
     Lightweight request helper that can use an external authenticated session.
+
     Adds throttling, typed exceptions, and lazily mounts HTTPAdapter+Retry
     onto whichever session is actually used for a call.
     """
@@ -22,9 +23,9 @@ class Requester:
         self,
         requests_per_window: int = 60,
         window_seconds: float = 60.0,
-        max_retries: int = 3,
-        backoff_factor: float = 0.5,
-        status_forcelist: tuple[int, ...] = (429, 500, 502, 503, 504, 525),
+        max_retries: int = 5,
+        backoff_factor: float = 1.5,
+        status_forcelist: tuple[int, ...] = (429, 430, 500, 502, 503, 504, 525),
         allowed_methods: tuple[str, ...] = ("GET", "HEAD", "OPTIONS", "POST"),
         pool_connections: int = 10,
         pool_maxsize: int = 10,
@@ -32,6 +33,21 @@ class Requester:
         user_agent: str = "ao3.py (+https://example)",
         session: Optional[requests.Session] = None,
     ):
+        """
+        Setup the requester.
+
+        :param requests_per_window:
+        :param window_seconds:
+        :param max_retries:
+        :param backoff_factor:
+        :param status_forcelist:
+        :param allowed_methods:
+        :param pool_connections:
+        :param pool_maxsize:
+        :param default_timeout:
+        :param user_agent:
+        :param session:
+        """
         # throttle state
         self._capacity = max(1, int(requests_per_window))
         self._window = float(window_seconds)
@@ -84,6 +100,10 @@ class Requester:
         timeout: Optional[tuple[float, float] | float] = None,
         proxies: Optional[Mapping[str, str]] = None,
         force_session: Optional[requests.Session] = None,
+
+        manual_retry: Optional[int] = 10,
+        manual_retry_delay: Optional[float] = 10.0,
+
     ) -> requests.Response:
         """
         Finally request the actual page.
@@ -97,6 +117,10 @@ class Requester:
         :param timeout:
         :param proxies:
         :param force_session:
+
+        :param manual_retry: Ignore all reqeust logic. Just stick the raw req in a loop.
+        :param manual_retry_delay: Th delay before manually retrying
+
         :return:
         """
         self._throttle()
@@ -112,19 +136,55 @@ class Requester:
         if headers:
             merged_headers.update(headers)
 
-        try:
-            resp = sess.request(
-                method=method,
-                url=url,
-                params=params,
-                data=data,
-                headers=merged_headers,
-                allow_redirects=allow_redirects,
-                timeout=self._default_timeout if timeout is None else timeout,
-                proxies=proxies,
-            )
-        except requests.RequestException as e:
-            raise NetworkException(str(e), url=url, method=method) from e
+        if not manual_retry:
+            try:
+                resp = sess.request(
+                    method=method,
+                    url=url,
+                    params=params,
+                    data=data,
+                    headers=merged_headers,
+                    allow_redirects=allow_redirects,
+                    timeout=self._default_timeout if timeout is None else timeout,
+                    proxies=proxies,
+                )
+            except requests.RequestException as e:
+                raise NetworkException(str(e), url=url, method=method) from e
+
+        else:
+            assert isinstance(manual_retry, int)
+            assert manual_retry >= 1
+
+            resp = None
+
+            try_count = 0
+
+            while try_count < manual_retry:
+
+                try:
+                    resp = sess.request(
+                        method=method,
+                        url=url,
+                        params=params,
+                        data=data,
+                        headers=merged_headers,
+                        allow_redirects=allow_redirects,
+                        timeout=self._default_timeout if timeout is None else timeout,
+                        proxies=proxies,
+                    )
+                except requests.RequestException as e:
+                    if try_count > manual_retry:
+                        raise NetworkException(str(e), url=url, method=method) from e
+
+                if resp is not None:
+                    break
+
+                # Reset for the next loop
+                try_count += 1
+                time.sleep(manual_retry_delay)
+
+            if resp is None:
+                raise NetworkException(f"Some kinda logic foul up when trying to retry - {url = } - {try_count = } - {sess = }")
 
         if resp.status_code == 429:
             retry_after = _parse_retry_after(resp.headers.get("Retry-After"))

@@ -10,7 +10,6 @@ from typing import Optional
 
 import bs4
 
-from ao3 import errors
 from ao3 import threadable, utils
 from ao3.comments import Comment
 from ao3.api.object_api import BaseObjectAPI

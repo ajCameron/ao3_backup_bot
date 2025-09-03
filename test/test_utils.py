@@ -1,6 +1,7 @@
 
 import ao3
 from ao3 import utils
+from ao3.search import Query
 
 def test_workid_from_url_variants():
     urls = [
@@ -21,7 +22,7 @@ def test_url_join():
     assert url_join("https://a/b", "c") == "https://a/b/c"
 
 def test_querybuilder_and_constraint():
-    q = utils.QueryBuilder()
+    q = Query()
     q.add_field("a=1")
     q.add_field("b=two")
     assert "a=1" in q.string and "b=two" in q.string

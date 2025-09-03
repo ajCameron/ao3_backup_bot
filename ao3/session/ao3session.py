@@ -30,6 +30,7 @@ class GuestAo3Session(Ao3SessionAPI):
     authenticity_token: Optional[str]
     username: str
     session: requests.Session
+    session_requester: Requester
 
     def __init__(self, username: str = "") -> None:
         """
@@ -39,8 +40,13 @@ class GuestAo3Session(Ao3SessionAPI):
 
         self.is_authed = False
         self.authenticity_token = None
+
         self.username = username
+
         self.session = requests.Session()
+        self.session_requester = Requester()
+        # We want to install the retry handlers - registerng the session with a requester should do it
+        self.session_requester.attach_session(self.session)
 
     @property
     def user(self) -> User:

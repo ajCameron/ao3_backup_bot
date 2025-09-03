@@ -9,7 +9,6 @@ import pickle
 
 from bs4 import BeautifulSoup
 
-import errors
 from ao3 import threadable, utils
 from ao3.requester import requester
 

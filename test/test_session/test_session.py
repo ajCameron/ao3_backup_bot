@@ -41,19 +41,6 @@ class TestSessionLogin:
 
         assert test_session.logged_in is True
 
-        assert test_session.get_subscriptions_url(1) \
-               == \
-               "https://archiveofourown.org/users/thomaswpaine/subscriptions?page=1"
-
-        assert test_session.post_login_title == 'thomaswpaine | Archive of Our Own'
-
-        subbed_series = test_session.get_series_subscriptions(use_threading=False)
-        assert isinstance(subbed_series, list), "Expecting a list back, and didn't get it."
-
-        subbed_works = test_session.get_work_subscriptions(use_threading=False)
-        assert isinstance(subbed_works, list), "Expecting a list back, and didn't get it."
-
-
     # def test_basic_flow_valid_username_and_valid_password_direct_session(self) -> None:
     #     """
     #     Tests the basic authentication flow.

@@ -3,6 +3,8 @@ import os
 import tempfile
 import ao3
 
+import pytest
+
 
 class TestWorkMetadata:
     """
@@ -23,5 +25,12 @@ class TestWorkMetadata:
 
         assert isinstance(work.text, str)
 
-        assert len(work.text) >= 100000
+        if work.text == 0:
+            err_str = "We're getting that transitory bug - investigating."
+            err_str += f"\n{work._soup.title = }"
+            pytest.fail(err_str)
+
+        assert len(work.text) >= 100000, f"Full text for the work was not as long as expected - {work.text = }"
+
+
 

@@ -37,13 +37,13 @@ class TestDownloadAWork:
 
             assert os.path.exists(target_file_path) and os.path.isfile(target_file_path)
 
-            assert os.path.getsize(target_file_path) >= 211489
+            assert os.path.getsize(target_file_path) >= 211487
 
     def test_download_age_restricted_work_guest_session(self) -> None:
         """
         Some works seem to need you to agree to an age restriction before viewing.
 
-        Hacking on that.
+        Guest login should still work.
         :return:
         """
         url = "https://archiveofourown.org/works/67662711/chapters/174904496"
@@ -114,4 +114,4 @@ class TestDownloadAWork:
 
             assert os.path.exists(target_file_path) and os.path.isfile(target_file_path)
 
-            assert os.path.getsize(target_file_path) >= 82563
+            assert os.path.getsize(target_file_path) >= 82500

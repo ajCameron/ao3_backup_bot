@@ -11,13 +11,13 @@ import requests
 from bs4 import BeautifulSoup
 
 import ao3.errors as errors
-from ao3.api.comment_session_work_api import WorkAPI, Ao3SessionAPI
+from ao3.api.comment_session_work_api import WorkAPI, Ao3SessionAPI, SeriesAPI
 from ao3 import threadable, utils
 from ao3.chapters import Chapter
 from ao3.comments import Comment
 from ao3.users import User
 from ao3.utils import urls_match
-from ao3.errors import AuthException
+from ao3.errors import AuthException, WorkNotFoundException, UnloadedException, HTTPException, DownloadException, UnexpectedResponseException, BookmarkException
 
 ALLOWED_FILE_TYPES = ["AZW3", "EPUB", "HTML", "MOBI", "PDF"]
 
@@ -82,6 +82,18 @@ class Work(WorkAPI):
         """
         return isinstance(other, self.__class__) and other.id == self.id
 
+    def _reload_full_text_soup(self) -> None:
+        """
+        Reload the full chapter text of the soup.
+
+        :return:
+        """
+        # We're trying to pull the entire work into memory
+        self._soup = self.request(
+            f"https://archiveofourown.org/works/{self.id}?view_adult=true&view_full_work=true",
+            set_main_url_req=True,
+        )
+
     @threadable.threadable
     def reload(self, load_chapters: Optional[bool] = True):
         """
@@ -96,20 +108,18 @@ class Work(WorkAPI):
         """
 
         for attr in self.__class__.__dict__:
+
             if isinstance(getattr(self.__class__, attr), cached_property):
                 if attr in self.__dict__:
                     delattr(self, attr)
 
-        # We're trying to pull the entire work into memory
-        self._soup = self.request(
-            f"https://archiveofourown.org/works/{self.id}?view_adult=true&view_full_work=true",
-            set_main_url_req=True,
-        )
+        self._reload_full_text_soup()
 
+        # Try and parse the chapters text out of the soup
         h2_text = self._soup.find("h2", {"class": "heading"})
 
         if h2_text is not None and "Error 404" in h2_text.text:
-            raise errors.WorkNotFoundInvalidIdException("Cannot find work")
+            raise WorkNotFoundException("Cannot find work")
 
         if load_chapters:
             self.load_chapters()
@@ -140,12 +150,21 @@ class Work(WorkAPI):
         """
 
         self.chapters = []
+
         chapters_div = self._soup.find(attrs={"id": "chapters"})
+
+        # Unless we have an empty work, which does happen, this isn't right.
+        # Try a reload.
         if chapters_div is None:
-            return
+            self._reload_full_text_soup()
+            chapters_div = self._soup.find(attrs={"id": "chapters"})
+            if chapters_div is None:
+                return
 
         if self.nchapters > 1:
+
             for n in range(1, self.nchapters + 1):
+
                 chapter = chapters_div.find("div", {"id": f"chapter-{n}"})
                 if chapter is None:
                     continue
@@ -162,6 +181,7 @@ class Work(WorkAPI):
                 c = Chapter(id_, self, self._session, False)
                 c._soup = chapter
                 self.chapters.append(c)
+
         else:
             c = Chapter(None, self, self._session, False)
             c._soup = chapters_div
@@ -178,7 +198,7 @@ class Work(WorkAPI):
         """
 
         if not self.loaded:
-            raise errors.UnloadedException(
+            raise UnloadedException(
                 "Work isn't loaded. Have you tried calling Work.reload()?"
             )
 
@@ -203,34 +223,39 @@ class Work(WorkAPI):
         Returns:
             bytes: File content
         """
+        if filetype not in ALLOWED_FILE_TYPES:
+            raise DownloadException(
+                f"Given type {filetype = } not in allowed types {ALLOWED_FILE_TYPES = }"
+            )
 
         if not self.loaded:
-            raise errors.UnloadedException(
+            raise UnloadedException(
                 "Work isn't loaded. Have you tried calling Work.reload()?"
             )
         download_btn = self._soup.find("li", {"class": "download"})
 
         if download_btn is None:
-            raise errors.AuthException(
+            raise AuthException(
                 "Cannot find download class - you may need to log in?"
             )
 
         for download_type in download_btn.findAll("li"):
+
             if download_type.a.getText() == filetype.upper():
                 url = f"https://archiveofourown.org/{download_type.a.attrs['href']}"
                 req = self.get(url)
                 if req.status_code == 429:
-                    raise errors.HTTPException(
+                    raise HTTPException(
                         "We are being rate-limited. Try again in a while or reduce the number of requests"
                     )
 
                 if not req.ok:
-                    raise errors.DownloadException(
+                    raise DownloadException(
                         "An error occurred while downloading the work"
                     )
                 return req.content
 
-        raise errors.UnexpectedResponseException(
+        raise UnexpectedResponseException(
             f"Filetype '{filetype}' is not available for download"
         )
 
@@ -345,7 +370,7 @@ class Work(WorkAPI):
         """
 
         if not self.loaded:
-            raise errors.UnloadedException(
+            raise UnloadedException(
                 "Work isn't loaded. Have you tried calling Work.reload()?"
             )
 
@@ -401,7 +426,7 @@ class Work(WorkAPI):
         """
 
         if self._session is None or not self._session.is_authed:
-            raise errors.AuthException(
+            raise AuthException(
                 "You can only subscribe to a work using an authenticated session"
             )
 
@@ -419,7 +444,7 @@ class Work(WorkAPI):
         if not self.is_subscribed:
             raise Exception("You are not subscribed to this work")
         if self._session is None or not self._session.is_authed:
-            raise errors.AuthException(
+            raise AuthException(
                 "You can only unsubscribe from a work using an authenticated session"
             )
 
@@ -427,7 +452,7 @@ class Work(WorkAPI):
 
     @cached_property
     def text(self) -> str:
-        """This work's text"""
+        """This work's full text."""
 
         text = ""
         for chapter in self.chapters:
@@ -450,7 +475,7 @@ class Work(WorkAPI):
         """True if you're subscribed to this work."""
 
         if self._session is None or not self._session.is_authed:
-            raise errors.AuthException(
+            raise AuthException(
                 "You can only get a user ID using an authenticated session"
             )
 
@@ -465,7 +490,7 @@ class Work(WorkAPI):
         """Returns the subscription ID. Used for unsubscribing"""
 
         if self._session is None or not self._session.is_authed:
-            raise errors.AuthException(
+            raise AuthException(
                 "You can only get a user ID using an authenticated session"
             )
 
@@ -488,7 +513,7 @@ class Work(WorkAPI):
         """
 
         if self._session is None:
-            raise errors.AuthException("Invalid session")
+            raise AuthException("Invalid session")
         return utils.kudos(self, self._session)
 
     @threadable.threadable
@@ -518,12 +543,12 @@ class Work(WorkAPI):
         """
 
         if not self.loaded:
-            raise errors.UnloadedException(
+            raise UnloadedException(
                 "Work isn't loaded. Have you tried calling Work.reload()?"
             )
 
         if self._session is None:
-            raise errors.AuthException("Invalid session")
+            raise AuthException("Invalid session")
 
         return utils.comment(
             self, comment_text, self._session, True, email=email, name=name, pseud=pseud
@@ -557,12 +582,12 @@ class Work(WorkAPI):
         """
 
         if not self.loaded:
-            raise errors.UnloadedException(
+            raise UnloadedException(
                 "Work isn't loaded. Have you tried calling Work.reload()?"
             )
 
         if self._session is None:
-            raise errors.AuthException("Invalid session")
+            raise AuthException("Invalid session")
 
         utils.bookmark(
             self, self._session, notes, tags, collections, private, recommend, pseud
@@ -580,15 +605,15 @@ class Work(WorkAPI):
         """
 
         if not self.loaded:
-            raise errors.UnloadedException(
+            raise UnloadedException(
                 "Work isn't loaded. Have you tried calling Work.reload()?"
             )
 
         if self._session is None:
-            raise errors.AuthException("Invalid session")
+            raise AuthException("Invalid session")
 
         if self._bookmarkid is None:
-            raise errors.BookmarkException("You don't have a bookmark here")
+            raise BookmarkException("You don't have a bookmark here")
 
         utils.delete_bookmark(self._bookmarkid, self._session, self.authenticity_token)
 
@@ -607,12 +632,12 @@ class Work(WorkAPI):
         """
 
         if not self.loaded:
-            raise errors.UnloadedException(
+            raise UnloadedException(
                 "Work isn't loaded. Have you tried calling Work.reload()?"
             )
 
         if self._session is None:
-            raise errors.AuthException("Invalid session")
+            raise AuthException("Invalid session")
 
         utils.collect(self, self._session, collections)
 
@@ -648,7 +673,7 @@ class Work(WorkAPI):
         return self.nchapters == 1
 
     @cached_property
-    def series(self) -> list["Series"]:
+    def series(self) -> list["SeriesAPI"]:
         """Returns the series this work belongs to"""
 
         from ao3.series import Series

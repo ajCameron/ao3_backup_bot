@@ -7,7 +7,7 @@ from typing import Optional, Any
 from datetime import date
 from functools import cached_property
 
-import ao3.errors
+from ao3.errors import AuthException, UnloadedException, InvalidIdException, BookmarkException, HTTPException
 from ao3 import threadable, utils
 from ao3.common import get_work_from_banner
 from ao3.users import User
@@ -86,7 +86,7 @@ class Series(SeriesAPI):
 
         self._soup = self.request(f"https://archiveofourown.org/series/{self.id}")
         if "Error 404" in self._soup.text:
-            raise errors.InvalidIdException(
+            raise InvalidIdException(
                 "Cannot find series - 404 when loading soup."
             )
 
@@ -101,7 +101,7 @@ class Series(SeriesAPI):
         """
 
         if self._session is None or not self._session.is_authed:
-            raise errors.AuthException(
+            raise AuthException(
                 "You can only subscribe to a series using an authenticated session"
             )
 
@@ -120,7 +120,7 @@ class Series(SeriesAPI):
         if not self.is_subscribed:
             raise Exception("You are not subscribed to this series")
         if self._session is None or not self._session.is_authed:
-            raise errors.AuthException(
+            raise AuthException(
                 "You can only unsubscribe from a series using an authenticated session"
             )
 
@@ -154,12 +154,12 @@ class Series(SeriesAPI):
         """
 
         if not self.loaded:
-            raise errors.UnloadedException(
+            raise UnloadedException(
                 "Series isn't loaded. Have you tried calling Series.reload()?"
             )
 
         if self._session is None:
-            raise errors.AuthException("Invalid session")
+            raise AuthException("Invalid session")
 
         utils.bookmark(
             self, self._session, notes, tags, collections, private, recommend, pseud
@@ -177,15 +177,15 @@ class Series(SeriesAPI):
         """
 
         if not self.loaded:
-            raise errors.UnloadedException(
+            raise UnloadedException(
                 "Series isn't loaded. Have you tried calling Series.reload()?"
             )
 
         if self._session is None:
-            raise errors.AuthException("Invalid session")
+            raise AuthException("Invalid session")
 
         if self._bookmarkid is None:
-            raise errors.BookmarkException("You don't have a bookmark here")
+            raise BookmarkException("You don't have a bookmark here")
 
         utils.delete_bookmark(self._bookmarkid, self._session, self.authenticity_token)
 
@@ -240,7 +240,7 @@ class Series(SeriesAPI):
         """True if you're subscribed to this series."""
 
         if self._session is None or not self._session.is_authed:
-            raise errors.AuthException(
+            raise AuthException(
                 "You can only get a series ID using an authenticated session"
             )
 
@@ -332,7 +332,7 @@ class Series(SeriesAPI):
                 date_str = field.getText().strip()
                 break
         if date_str is None:
-            raise errors.HTTPException("Couldn't find the date in the HTML.")
+            raise HTTPException("Couldn't find the date in the HTML.")
         return date(*list(map(int, date_str.split("-"))))
 
     @cached_property
@@ -355,7 +355,7 @@ class Series(SeriesAPI):
                 break
 
         if date_str is None:
-            raise errors.HTTPException("Couldn't find the date in the HTML.")
+            raise HTTPException("Couldn't find the date in the HTML.")
 
         return date(*list(map(int, date_str.split("-"))))
 
@@ -378,7 +378,7 @@ class Series(SeriesAPI):
                 break
 
         if words is None:
-            raise errors.HTTPException("Couldn't find the word count in the HTML.")
+            raise HTTPException("Couldn't find the word count in the HTML.")
 
         return int(words.replace(",", ""))
 
@@ -401,7 +401,7 @@ class Series(SeriesAPI):
                 break
 
         if works is None:
-            raise errors.HTTPException("Couldn't find the works count in the HTML.")
+            raise HTTPException("Couldn't find the works count in the HTML.")
 
         return int(works.replace(",", ""))
 
@@ -424,7 +424,7 @@ class Series(SeriesAPI):
                 break
 
         if complete is None:
-            raise errors.HTTPException("Couldn't find the complete flag in the HTML.")
+            raise HTTPException("Couldn't find the complete flag in the HTML.")
 
         return True if complete == "Yes" else False
 
