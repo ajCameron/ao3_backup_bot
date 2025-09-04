@@ -1,7 +1,7 @@
 """
 Holds the base class for all AO3 objects.
 """
-
+import time
 from typing import Optional, Union, Any, Callable
 
 import requests
@@ -51,7 +51,8 @@ class BaseObjectAPI:
         force_session: Optional[requests.Session] = None,
 
         retry_test: Optional[Callable[[BeautifulSoup], Optional[bs4._typing._AtMostOneElement]]] = None,
-        retry_count: Optional[int] = 1
+        retry_count: int = 5,
+        retry_interval: float = 30.0
 
     ) -> BeautifulSoup:
         """Helper method - equest a web page and return a BeautifulSoup object.
@@ -64,12 +65,11 @@ class BaseObjectAPI:
 
             retry_test: If provided, then a test function to see if the soup contains needed elements
             retry_count: How many retries to attempt if the soup does not have needed elements
+            retry_interval: How many seconds to wait before retry
 
         Returns:
             bs4.BeautifulSoup: BeautifulSoup object representing the requested page's html
         """
-
-        # if retry_test is None:
 
         req = self.get(url, proxies=proxies, force_session=force_session)
 
@@ -77,6 +77,27 @@ class BaseObjectAPI:
             warnings.warn(
                 "This work is very big and might take a very long time to load"
             )
+
+        soup = BeautifulSoup(req.content, "lxml")
+
+        # We can retry - so do so
+        # - We have a retry test and it's failing
+        if retry_test is not None and retry_test(soup) is None:
+
+            assert isinstance(retry_count, int) and retry_count >= 1, f"Malformed retry count {retry_count = }"
+
+            current_count = 0
+            while current_count < retry_count:
+
+                current_count += 1
+
+                req = self.get(url, proxies=proxies, force_session=force_session)
+
+                soup = BeautifulSoup(req.content, "lxml")
+                if retry_test(soup) is not None:
+                    break
+
+                time.sleep(retry_interval)
 
         if set_main_url_req:
             self._main_page_rep = req

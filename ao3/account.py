@@ -489,7 +489,7 @@ class Account(AccountAPI):
         def _retry_test(target_soup: bs4.BeautifulSoup) -> Optional[bs4._typing._AtMostOneElement]:
             return target_soup.find("div", {"class": "bookmarks-index dashboard filtered region"})
 
-        soup = self.request(url)
+        soup = self.request(url, retry_test=_retry_test)
         div = _retry_test(soup)
 
         if div is None:
