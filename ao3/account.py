@@ -440,17 +440,23 @@ class Account(AccountAPI):
         :return:
         """
         url = self._bookmarks_url.format(self.username, page)
-        soup = self.request(url)
+
+        def _retry_test(target_soup: bs4.BeautifulSoup) -> Optional[bs4._typing._AtMostOneElement]:
+            return target_soup.find("ol", {"class": "bookmark index group"})
+
+        soup = self.request(url, retry_test=_retry_test)
+
         bookmarks = soup.find("ol", {"class": "bookmark index group"})
-        for bookm in bookmarks.find_all(
+
+        for book_m in bookmarks.find_all(
             "li", {"class": ["bookmark", "index", "group"]}
         ):
             authors = []
             recommended = False
             workid = -1
             workname = ""
-            if bookm.h4 is not None:
-                for a in bookm.h4.find_all("a"):
+            if book_m.h4 is not None:
+                for a in book_m.h4.find_all("a"):
                     if "rel" in a.attrs.keys():
                         if "author" in a["rel"]:
                             authors.append(User(str(a.string), load=False))
@@ -459,7 +465,7 @@ class Account(AccountAPI):
                         workid = workid_from_url(a["href"])
 
                 # Get whether the bookmark is recommended
-                for span in bookm.p.find_all("span"):
+                for span in book_m.p.find_all("span"):
                     if "title" in span.attrs.keys():
                         if span["title"] == "Rec":
                             recommended = True

@@ -10,6 +10,8 @@ import warnings
 import bs4
 from bs4 import BeautifulSoup
 
+from ao3.errors import HTTPException, RateLimitedException
+
 
 
 class BasicSessionAPI:
@@ -157,7 +159,7 @@ class BaseObjectAPI:
             )
 
         if req.status_code == 429:
-            raise errors.HTTPException(
+            raise HTTPException(
                 "We are being rate-limited. Try again in a while or reduce the number of requests"
             )
 
@@ -220,7 +222,7 @@ class BaseObjectAPI:
             )
 
         if req.status_code == 429:
-            raise errors.RateLimitedException(
+            raise RateLimitedException(
                 "We are being rate-limited. Try again in a while or reduce the number of requests"
             )
         return req

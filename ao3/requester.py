@@ -176,6 +176,20 @@ class Requester:
                     if try_count > manual_retry:
                         raise NetworkException(str(e), url=url, method=method) from e
 
+                # We're being rate limited - attempt to recover
+                if resp is not None and resp.status_code == 429:
+
+                    try:
+                        retry_after = float(_parse_retry_after(resp.headers.get("Retry-After")))
+                    except (TypeError, ValueError):
+                        retry_after = 512.0
+
+                    # We want to over rather than under the wait
+                    retry_after += 10.0
+
+                    time.sleep(retry_after)
+                    try_count -= 1
+
                 if resp is not None:
                     break
 
