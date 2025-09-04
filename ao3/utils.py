@@ -5,6 +5,7 @@ import re
 from typing import Optional, Union
 
 import requests.models
+from datetime import datetime
 from bs4 import BeautifulSoup
 
 from ao3.requester import requester
@@ -740,3 +741,23 @@ def urls_match(a: str, b: str) -> bool:
     :return:
     """
     return normalize_url(a) == normalize_url(b)
+
+
+_DATE_PATTERNS = ("%d %b %Y", "%d %b %Y %H:%M", "%Y-%m-%d")  # expand if AO3 varies
+
+
+def parse_int(text: str) -> Optional[int]:
+    m = re.search(r"(\d[\d,]*)", text or "")
+    if not m:
+        return None
+    return int(m.group(1).replace(",", ""))
+
+
+def parse_date(text: str) -> Optional[datetime]:
+    text = (text or "").strip()
+    for fmt in _DATE_PATTERNS:
+        try:
+            return datetime.strptime(text, fmt)
+        except ValueError:
+            pass
+    return None
