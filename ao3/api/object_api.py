@@ -2,7 +2,7 @@
 Holds the base class for all AO3 objects.
 """
 
-from typing import Optional, Union, Any
+from typing import Optional, Union, Any, Callable
 
 import requests
 import warnings
@@ -49,18 +49,27 @@ class BaseObjectAPI:
         proxies: Optional[dict[str, str]] = None,
         set_main_url_req: bool = False,
         force_session: Optional[requests.Session] = None,
+
+        retry_test: Optional[Callable[[BeautifulSoup], Optional[bs4._typing._AtMostOneElement]]] = None,
+        retry_count: Optional[int] = 1
+
     ) -> BeautifulSoup:
-        """Request a web page and return a BeautifulSoup object.
+        """Helper method - equest a web page and return a BeautifulSoup object.
 
         Args:
             url (str): Url to request
             proxies: Provide proxy options to the underlying call
             set_main_url_req: If True, will set the soup for the main page to this
-            force_session: If True, then
+            force_session: If True, then use this session to access the internet.
+
+            retry_test: If provided, then a test function to see if the soup contains needed elements
+            retry_count: How many retries to attempt if the soup does not have needed elements
 
         Returns:
             bs4.BeautifulSoup: BeautifulSoup object representing the requested page's html
         """
+
+        # if retry_test is None:
 
         req = self.get(url, proxies=proxies, force_session=force_session)
 

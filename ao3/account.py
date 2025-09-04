@@ -7,6 +7,7 @@ The Account class contains methods to interact with your account.
 
 from typing import Union, Optional
 
+import bs4
 from bs4 import BeautifulSoup
 
 import re
@@ -104,11 +105,13 @@ class Account(AccountAPI):
         pages = soup.find("ol", {"title": "pagination"})
         if pages is None:
             return 1
+
         n = 1
         for li in pages.findAll("li"):
             text = li.getText()
             if text.isdigit():
                 n = int(text)
+
         return n
 
     def get_subscription_url(self, page: int) -> str:
@@ -482,10 +485,15 @@ class Account(AccountAPI):
         """
 
         url = self._bookmarks_url.format(self.username, 1)
+
+        def _retry_test(target_soup: bs4.BeautifulSoup) -> Optional[bs4._typing._AtMostOneElement]:
+            return target_soup.find("div", {"class": "bookmarks-index dashboard filtered region"})
+
         soup = self.request(url)
-        div = soup.find("div", {"class": "bookmarks-index dashboard filtered region"})
+        div = _retry_test(soup)
+
         if div is None:
-            raise HTTPException(f"Call to get bookmarks returned malformed {url = }.")
+            raise HTTPException(f"Call to get bookmarks returned malformed {url = } - {soup.title.str = }.")
 
         h2 = div.h2.text.split()
 

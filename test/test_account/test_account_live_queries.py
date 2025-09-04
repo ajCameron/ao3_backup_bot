@@ -32,7 +32,7 @@ class TestSessionLoginFollowedByAccountCalls:
 
     _session: None
 
-    def test_authed_unpooled_account_get_work_subscriptions(self) -> None:
+    def test_authed_unpooled_account_get_work_subscriptions_unthreaded(self) -> None:
         """
         For some reason I'm not sure we're properly logging in.
 
@@ -77,6 +77,53 @@ class TestSessionLoginFollowedByAccountCalls:
         assert isinstance(all_bookmarks, list)
         for book_mark in all_bookmarks:
             assert isinstance(book_mark, Work)
+
+    def test_authed_unpooled_account_get_work_subscriptions_threaded(self) -> None:
+        """
+        For some reason I'm not sure we're properly logging in.
+
+        :return:
+        """
+        secrets_dict = get_secrets_dict()
+
+        test_session = Ao3SessionUnPooled(
+            username=secrets_dict["username"], password=secrets_dict["password"]
+        )
+
+        assert test_session.logged_in is True
+
+        test_account = Account(session=test_session)
+
+        assert test_account.get_subscriptions_url(1) \
+               == \
+               "https://archiveofourown.org/users/thomaswpaine/subscriptions?page=1"
+
+        assert test_session.post_login_title == 'thomaswpaine | Archive of Our Own'
+
+        subbed_series = test_account.get_series_subscriptions(use_threading=True)
+        assert isinstance(subbed_series, list), "Expecting a list back, and didn't get it."
+
+        subbed_works = test_account.get_work_subscriptions(use_threading=True)
+        assert isinstance(subbed_works, list), "Expecting a list back, and didn't get it."
+
+        full_history = test_account.get_history()
+        assert isinstance(full_history, list)
+        for work_tuple in full_history:
+            assert isinstance(work_tuple, list)
+            assert len(work_tuple) == 3
+            assert isinstance(work_tuple[0],Work)
+            assert isinstance(work_tuple[1], int)
+            assert isinstance(work_tuple[2], datetime.datetime)
+
+        bookmark_count = test_account.bookmarks
+        assert isinstance(bookmark_count, int)
+        assert bookmark_count > 0
+
+        all_bookmarks = test_account.get_bookmarks(use_threading=True)
+        assert isinstance(all_bookmarks, list)
+        for book_mark in all_bookmarks:
+            assert isinstance(book_mark, Work)
+
 
 
 

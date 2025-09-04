@@ -604,6 +604,7 @@ class Ao3SessionAPI(BaseObjectAPI, abc.ABC):
         """
         Startup a session object.
         """
+        self.logged_in = False
 
     @property
     @abc.abstractmethod
