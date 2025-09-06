@@ -7,6 +7,8 @@ The Account class contains methods to interact with your account.
 
 from typing import Union, Optional
 
+import logging
+
 import bs4
 from bs4 import BeautifulSoup
 
@@ -22,7 +24,8 @@ from ao3.api.account_api import AccountAPI
 from ao3.api.comment_session_work_api import WorkAPI, Ao3SessionAPI
 from ao3.users import User
 from ao3.series import Series
-from ao3.utils import workid_from_url
+from ao3.utils import workid_from_url, ao3_parse_date, ao3_parse_int
+from ao3.models import HistoryItem
 
 from ao3.errors import HTTPException
 
@@ -35,9 +38,13 @@ class Account(AccountAPI):
     _subscriptions_url: str
     session: "Ao3SessionAPI"
 
+    _history: Optional[list[HistoryItem]]
+
+    _logger: logging.Logger
+
     def __init__(self, session: "Ao3SessionAPI") -> None:
         """
-        Starup the Account - attached to an authenticated session.
+        Startup the Account - attached to an authenticated session.
 
         :param session:
         :return:
@@ -58,6 +65,8 @@ class Account(AccountAPI):
         self._subscriptions = None
         self._history = None
 
+        self._logger = logging.getLogger(f"Account-{self.username}-{id(self)}")
+
     @property
     def _session(self) -> Optional["Ao3SessionAPI"]:
         """
@@ -76,6 +85,7 @@ class Account(AccountAPI):
 
         :return:
         """
+        self._logger.info("Clearing cache.")
         for attr in self.__class__.__dict__:
             if isinstance(getattr(self.__class__, attr), cached_property):
                 if attr in self.__dict__:
@@ -93,6 +103,14 @@ class Account(AccountAPI):
         url = self._subscriptions_url.format(self.username, page)
         return url
 
+    def get_subscription_page_count(self) -> int:
+        """
+        Return the number of pages of subscription the user has.
+
+        :return:
+        """
+        return self._subscription_pages
+
     @cached_property
     def _subscription_pages(self) -> int:
         """
@@ -101,12 +119,28 @@ class Account(AccountAPI):
         :return:
         """
         url = self._subscriptions_url.format(self.username, 1)
+
+        self._logger.info(f"_subscription_pages making a request - {url = }")
         soup = self.request(url)
+        self._logger.info(f"_subscription_pages has soup - {soup.title.string = }")
+
+        return self._find_page_count_helper(soup)
+
+    @staticmethod
+    def _find_page_count_helper(soup: bs4.BeautifulSoup) -> int:
+        """
+        Several ao3 pages use the same structure to record page count - search for it and return.
+
+        :param soup:
+        :return:
+        """
+
         pages = soup.find("ol", {"title": "pagination"})
         if pages is None:
             return 1
 
         n = 1
+
         for li in pages.findAll("li"):
             text = li.getText()
             if text.isdigit():
@@ -171,12 +205,14 @@ class Account(AccountAPI):
         """
 
         if self._subscriptions is None:
+
             if use_threading:
                 self.load_subscriptions_threaded()
             else:
                 self._subscriptions = []
                 for page in range(self._subscription_pages):
                     self._load_subscriptions(page=page + 1)
+
         return self._subscriptions
 
     @threadable.threadable
@@ -257,25 +293,17 @@ class Account(AccountAPI):
         """
         url = self._history_url.format(self.username, 1)
         soup = self.request(url)
-        pages = soup.find("ol", {"title": "pagination"})
-        if pages is None:
-            return 1
-        n = 1
-        for li in pages.findAll("li"):
-            text = li.getText()
-            if text.isdigit():
-                n = int(text)
-        return n
+
+        return self._find_page_count_helper(soup)
 
     # Todo: To try and untangle the absolute mess which is the import chains, these should probably not be on session?
-    # Todo: New class AuthenticatedUser?
     def get_history(
         self,
         hist_sleep: int = 3,
         start_page: int = 0,
         max_pages: Optional[int] = None,
         timeout_sleep: Optional[int] = 60,
-        force_refresh: bool = False,
+        force_refresh: bool = False
     ) -> Optional[list[list[WorkAPI, int, datetime.datetime]]]:
         """
        Get history works.
@@ -289,6 +317,7 @@ class Account(AccountAPI):
          timeout_sleep (int, if set will attempt to recovery from http errors, likely timeouts, if set to None
          will just attempt to load)
          force_refresh (bool):
+         use_load_history_fallback (bool):
 
         takes two arguments the first hist_sleep is an int and is a sleep to run between pages of history to load to
         avoid hitting the rate limiter, the second is an int of the maximum number of pages of history to load, by
@@ -300,6 +329,7 @@ class Account(AccountAPI):
 
         if self._history is None:
             self._history = []
+
             for page in range(start_page, self._history_pages):
                 # If we are attempting to recover from errors then
                 # catch and loop, otherwise just call and go
@@ -307,17 +337,24 @@ class Account(AccountAPI):
                     self._load_history(page=page + 1)
 
                 else:
-                    loaded = False
 
+                    loaded = False
+                    fallback_count = 0
+                    fail_at_count = 1000000
                     while loaded is False:
                         try:
                             self._load_history(page=page + 1)
-                            # print(f"Read history page {page+1}")
+
                             loaded = True
 
                         except HTTPException:
-                            # print(f"History being rate limited, sleeping for {timeout_sleep} seconds")
+
                             time.sleep(timeout_sleep)
+
+                        fallback_count += 1
+                        if fallback_count > fail_at_count:
+                            self._logger.error(f"fallback_count tripped as {fallback_count = }")
+                            break
 
                 # Check for maximum history page load
                 if max_pages is not None and page >= max_pages:
@@ -330,24 +367,73 @@ class Account(AccountAPI):
 
         return self._history
 
-    def _load_history(self, page: int = 1) -> None:
+    def get_history_page_url(self, page: int = 1) -> str:
         """
-        Load a single page from history.
+        Return the URL for a particular page of the history to view.
 
         :param page:
         :return:
         """
         url = self._history_url.format(self.username, page)
-        soup = self.request(url)
-        history = soup.find("ol", {"class": "reading work index group"})
+        return url
+
+    def _load_history(self, page: int = 1, override_soup: Optional[bs4.BeautifulSoup] = None) -> list[HistoryItem]:
+        """
+        Fallback method to load a single page from history.
+
+        :param page:
+        :param override_soup: Allows parsing testing by looping in existing soup instace
+        :return:
+        """
+        def _retry_test(target_soup: bs4.BeautifulSoup) -> Optional[bs4._typing._AtMostOneElement]:
+            return target_soup.find("ol", {"class": "reading work index group"})
+
+        if override_soup is None:
+            url = self._history_url.format(self.username, page)
+            soup = self.request(url, retry_test=_retry_test)
+        else:
+            soup = override_soup
+
+        history = _retry_test(soup)
+
+        this_page_history = []
         for item in history.find_all("li", {"role": "article"}):
-            # authors = []
-            workname = None
-            workid = None
-            for a in item.h4.find_all("a"):
-                if a.attrs["href"].startswith("/works"):
-                    workname = str(a.string)
-                    workid = workid_from_url(a["href"])
+
+            # Authors
+            h = item.find("h4", class_=re.compile(r"\bheading\b"))
+            authors = [a.get_text(strip=True) for a in
+                       (h.find_all("a", attrs={"rel": "author"}) if h else [])
+                       ]
+
+            # Title
+            h = item.find("h4", class_=re.compile(r"\bheading\b"))
+            a_title = h.find("a", href=re.compile(r"/works/\d+")) if h else None
+            title = a_title.get_text(strip=True) if a_title else ""
+
+            # Work ID
+            work_id = None
+            if a_title and a_title.has_attr("href"):
+                m = re.search(r"/works/(\d+)", a_title["href"])
+                if m:
+                    work_id = int(m.group(1))
+
+            # Datetime (AO3 often has <p class="datetime">12 Jan 2023</p>)
+            last_read_at = None
+            p_dt = item.find("p", class_=re.compile(r"\bdatetime\b"))
+            if p_dt:
+                last_read_at = ao3_parse_date(p_dt.get_text(" ", strip=True))
+
+            # Chapter count and word count in the blurb meta (<dd> or spans)
+            chapter_count = None
+            words = None
+            dd_tags = item.find_all(["dd", "span"])
+            for dd in dd_tags:
+                label = dd.get("class") or []
+                txt = dd.get_text(" ", strip=True)
+                if any("chapters" in c for c in label):
+                    chapter_count = ao3_parse_int(txt)
+                elif "words" in txt.lower() or any("words" in c for c in label):
+                    words = ao3_parse_int(txt)
 
             visited_date = None
             visited_num = 1
@@ -366,16 +452,28 @@ class Account(AccountAPI):
                 if visited_str is not None:
                     visited_num = int(visited_str.group(1))
 
-            from ao3.works import Work
+            # Fail fast if we can't identify the work
+            if title is not None and work_id is not None:
 
-            if workname is not None and workid is not None:
-                new = Work(workid, load=False)
-                setattr(new, "title", workname)
-                # setattr(new, "authors", authors)
-                hist_item = [new, visited_num, visited_date]
-                # print(hist_item)
-                if new not in self._history:
+                hist_item = HistoryItem(
+                    work_id=work_id,
+                    work_title=title,
+                    last_read_at=last_read_at,
+                    authors=authors,
+                    chapter_count=chapter_count,
+                    words=words,
+                    visited_date=visited_date,
+                    visited_num=visited_num,
+
+                )
+
+                if hist_item not in self._history:
                     self._history.append(hist_item)
+
+                this_page_history.append(hist_item)
+
+        return this_page_history
+
 
     @cached_property
     def _bookmark_pages(self) -> int:
@@ -386,15 +484,8 @@ class Account(AccountAPI):
         """
         url = self._bookmarks_url.format(self.username, 1)
         soup = self.request(url)
-        pages = soup.find("ol", {"title": "pagination"})
-        if pages is None:
-            return 1
-        n = 1
-        for li in pages.findAll("li"):
-            text = li.getText()
-            if text.isdigit():
-                n = int(text)
-        return n
+
+        return self._find_page_count_helper(soup)
 
     def get_bookmarks(self, use_threading: bool = False) -> list[WorkAPI]:
         """
@@ -564,6 +655,10 @@ class Account(AccountAPI):
         max_page = int(page_raw[len(page_raw) - 2].text)
         works = []
         for page in range(max_page):
+
+            fallback_count = 0
+            fail_at_count = 1000000
+
             grabbed = False
             while grabbed is False:
                 try:
@@ -580,5 +675,10 @@ class Account(AccountAPI):
                     grabbed = True
                 except HTTPException:
                     time.sleep(timeout_sleep)
+
+            fallback_count += 1
+            if fallback_count > fail_at_count:
+                self._logger.error(f"While loop is failing at {fallback_count = } - this is frankly alarming.")
+
             time.sleep(sleep)
         return works

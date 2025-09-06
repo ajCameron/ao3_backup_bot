@@ -699,6 +699,9 @@ class Work(WorkAPI):
             list: list of authors
         """
 
+        if self._soup is None:
+            raise UnloadedException(f"Cannot read authors - work is not loaded.")
+
         from ao3.users import User
 
         authors = self._soup.find_all("h3", {"class": "byline heading"})
