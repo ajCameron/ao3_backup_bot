@@ -350,7 +350,7 @@ class TestSessionLogin:
 
         from ao3 import utils
 
-        if req.status_code == 429:
+        if req.http_status_code == 429:
             raise HTTPException(
                 "We are being rate-limited. Try again in a while or reduce the number of requests"
             )

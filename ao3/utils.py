@@ -289,11 +289,11 @@ def comment(
     response = session.post(
         f"https://archiveofourown.org/comments.js", headers=headers, data=data
     )
-    if response.status_code == 429:
+    if response.http_status_code == 429:
         raise HTTPException(
             "We are being rate-limited. Try again in a while or reduce the number of requests"
         )
-    if response.status_code == 404:
+    if response.http_status_code == 404:
         if len(response.content) > 0:
             return response
         else:
@@ -301,7 +301,7 @@ def comment(
                 f"Invalid {'work ID' if fullwork else 'chapter ID'}"
             )
 
-    if response.status_code == 422:
+    if response.http_status_code == 422:
         json = response.json()
         if "errors" in json:
             if "auth_error" in json["errors"]:
@@ -309,11 +309,11 @@ def comment(
                     "Invalid authentication token. Try calling session.refresh_auth_token()"
                 )
         raise UnexpectedResponseException(f"Unexpected json received:\n{str(json)}")
-    elif response.status_code == 200:
+    elif response.http_status_code == 200:
         raise DuplicateCommentException("You have already left this comment here")
 
     raise UnexpectedResponseException(
-        f"Unexpected HTTP status code received ({response.status_code})"
+        f"Unexpected HTTP status code received ({response.http_status_code})"
     )
 
 
@@ -341,7 +341,7 @@ def delete_comment(comment: "Comment", session: "Session") -> None:
     data = {"authenticity_token": at, "_method": "delete"}
 
     req = session.post(f"https://archiveofourown.org/comments/{comment.id}", data=data)
-    if req.status_code == 429:
+    if req.http_status_code == 429:
         raise HTTPException(
             "We are being rate-limited. Try again in a while or reduce the number of requests"
         )
@@ -389,14 +389,14 @@ def kudos(work: WorkAPI, session: "Session") -> bool:
     response = session.post(
         "https://archiveofourown.org/kudos.js", headers=headers, data=data
     )
-    if response.status_code == 429:
+    if response.http_status_code == 429:
         raise HTTPException(
             "We are being rate-limited. Try again in a while or reduce the number of requests"
         )
 
-    if response.status_code == 201:
+    if response.http_status_code == 201:
         return True  # Success
-    elif response.status_code == 422:
+    elif response.http_status_code == 422:
         json = response.json()
         if "errors" in json:
             if "auth_error" in json["errors"]:
@@ -410,7 +410,7 @@ def kudos(work: WorkAPI, session: "Session") -> bool:
         raise UnexpectedResponseException(f"Unexpected json received:\n" + str(json))
     else:
         raise UnexpectedResponseException(
-            f"Unexpected HTTP status code received ({response.status_code})"
+            f"Unexpected HTTP status code received ({response.http_status_code})"
         )
 
 
@@ -775,51 +775,3 @@ def ao3_parse_date(text: str) -> Optional[datetime]:
         except ValueError:
             pass
     return None
-
-# root = soup.find("ol", class_=re.compile(r"\bwork\b.*\bindex\b"))
-
-# for li in root.find_all("li", attrs={"role": "article"}, recursive=False):
-#             # Title + Work ID
-#             h = li.find("h4", class_=re.compile(r"\bheading\b"))
-#             a_title = h.find("a", href=re.compile(r"/works/\d+")) if h else None
-#             title = a_title.get_text(strip=True) if a_title else ""
-#             work_id = None
-#             if a_title and a_title.has_attr("href"):
-#                 m = re.search(r"/works/(\d+)", a_title["href"])
-#                 if m:
-#                     work_id = int(m.group(1))
-#
-#             # Authors
-#             authors = [a.get_text(strip=True) for a in (h.find_all("a", attrs={"rel": "author"}) if h else [])]
-#
-#             # Datetime (AO3 often has <p class="datetime">12 Jan 2023</p>)
-#             dt = None
-#             p_dt = li.find("p", class_=re.compile(r"\bdatetime\b"))
-#             if p_dt:
-#                 dt = _parse_date(p_dt.get_text(" ", strip=True))
-#
-#             # Chapter count and word count in the blurb meta (<dd> or spans)
-#             chapter_count = None
-#             words = None
-#             dd_tags = li.find_all(["dd", "span"])
-#             for dd in dd_tags:
-#                 label = dd.get("class") or []
-#                 txt = dd.get_text(" ", strip=True)
-#                 if any("chapters" in c for c in label):
-#                     chapter_count = _parse_int(txt)
-#                 elif "words" in txt.lower() or any("words" in c for c in label):
-#                     words = _parse_int(txt)
-#
-#             if work_id is None:
-#                 # Skip rows we can’t identify robustly
-#                 continue
-#
-#             out.append(HistoryItem(
-#                 work_id=work_id,
-#                 work_title=title,
-#                 last_read_at=dt,
-#                 authors=authors,
-#                 chapter_count=chapter_count,
-#                 words=words,
-#             ))
-#         return out

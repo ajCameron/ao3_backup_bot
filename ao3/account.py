@@ -25,7 +25,7 @@ from ao3.api.comment_session_work_api import WorkAPI, Ao3SessionAPI
 from ao3.users import User
 from ao3.series import Series
 from ao3.utils import workid_from_url, ao3_parse_date, ao3_parse_int
-from ao3.models import HistoryItem
+from ao3.models import HistoryItem, SubscriptionItem, WorkSubscriptionItem, SeriesSubscriptionItem, UserSubscriptionItem
 
 from ao3.errors import HTTPException
 
@@ -35,8 +35,10 @@ class Account(AccountAPI):
     Represents an authenticated user's account on Ao3.
     """
 
-    _subscriptions_url: str
     session: "Ao3SessionAPI"
+
+    _subscriptions_url: str
+    _subscriptions: Optional[list[SubscriptionItem]] = None
 
     _history: Optional[list[HistoryItem]]
 
@@ -148,17 +150,7 @@ class Account(AccountAPI):
 
         return n
 
-    def get_subscription_url(self, page: int) -> str:
-        """
-        Return the URL of an actual subscription page.
-
-        :param page:
-        :return:
-        """
-        url = self._subscriptions_url.format(self.username, page)
-        return url
-
-    def get_work_subscriptions(self, use_threading: bool = False) -> list[WorkAPI]:
+    def get_work_subscriptions(self, use_threading: bool = False) -> list[WorkSubscriptionItem]:
         """
         Get subscribed works. Loads them if they haven't been previously
 
@@ -167,34 +159,50 @@ class Account(AccountAPI):
         """
         from ao3.works import Work
 
-        subs = self.get_subscriptions(use_threading)
-        return list(filter(lambda obj: isinstance(obj, Work), subs))
+        subs = self.get_subscriptions(use_threading=use_threading)
 
-    def get_series_subscriptions(self, use_threading: bool = False) -> list["Series"]:
+        work_subs: list[WorkSubscriptionItem] = []
+        for sub in subs:
+            if isinstance(sub, WorkSubscriptionItem):
+                work_subs.append(sub)
+
+        return work_subs
+
+    def get_series_subscriptions(self, use_threading: bool = False) -> list[SeriesSubscriptionItem]:
         """
         Get subscribed series. Loads them if they haven't been previously
 
         Returns:
             list: List of series subscriptions
         """
+        subs = self.get_subscriptions(use_threading=use_threading)
 
-        subs = self.get_subscriptions(use_threading)
-        return list(filter(lambda obj: isinstance(obj, Series), subs))
+        series_subs: list[SeriesSubscriptionItem] = []
+        for sub in subs:
+            if isinstance(sub, SeriesSubscriptionItem):
+                series_subs.append(sub)
 
-    def get_user_subscriptions(self, use_threading: bool = False) -> list["User"]:
+        return series_subs
+
+    def get_user_subscriptions(self, use_threading: bool = False) -> list[UserSubscriptionItem]:
         """
         Get subscribed users. Loads them if they haven't been previously
 
         Returns:
             list: List of users subscriptions
         """
+        subs = self.get_subscriptions(use_threading=use_threading)
 
-        subs = self.get_subscriptions(use_threading)
-        return list(filter(lambda obj: isinstance(obj, User), subs))
+        user_subs: list[UserSubscriptionItem] = []
+        for sub in subs:
+            if isinstance(sub, UserSubscriptionItem):
+                user_subs.append(sub)
+
+        return user_subs
 
     def get_subscriptions(
         self, use_threading: bool = False
-    ) -> list[Union["User", "Series", WorkAPI]]:
+    ) -> list[SubscriptionItem]:
         """
         Get user's subscriptions.
 
@@ -231,58 +239,189 @@ class Account(AccountAPI):
             thread.join()
 
     @threadable.threadable
-    def _load_subscriptions(self, page: int = 1) -> None:
+    def _load_subscriptions(self, page: int = 1) -> list[SubscriptionItem]:
         """
 
         :param page:
         :return:
         """
-        url = self._subscriptions_url.format(self.username, page)
+        def _retry_test(target_soup: bs4.BeautifulSoup) -> Optional[bs4._typing._AtMostOneElement]:
+            return target_soup.find("dl", {"class": "subscription index group"})
 
-        soup = self.request(url)
+        url = self.get_subscriptions_url(page=page)
+
+        soup = self.request(url, retry_test=_retry_test)
         assert soup is not None, f"Call to subscriptions url at {url = } failed!"
+
+        out: list[SubscriptionItem] = []
+
+        if self._subscriptions is None or not self._subscriptions:
+            self._subscriptions = []
 
         subscriptions = soup.find("dl", {"class": "subscription index group"})
         assert subscriptions is not None, f"Call to subscriptions url at {url = } failed! title = {soup.title.str}"
 
-        for sub in subscriptions.find_all("dt"):
-            type_ = "work"
+        for li in subscriptions.find_all("dt"):
+
+            # Prefer the heading block for the main link
+            heading = li.find(["h4", "h3"], class_=re.compile(r"\bheading\b")) or li
+
+            # Work / Series: link contains /works/<id> or /series/<id>
+            a_main = heading.find("a", href=True)
+            if not a_main:
+                continue
+
+            href = a_main["href"]
+            text = a_main.get_text(strip=True)
+
+            # Detect kind + id
+            m_work = re.search(r"/works/(\d+)", href)
+            m_series = re.search(r"/series/(\d+)", href)
+            m_user = re.search(r"/users/([^/]+)", href) and not (m_work or m_series)
+
+            assert sum([bool(m_work), bool(m_series), bool(m_user)]) == 1, \
+                f"More than one thing was truthy at the same time - {m_work = } {m_series} {m_user = }"
+
+            m_uid = None # Will be filled out later if present
+
+            # Try and generic trawl for all the information we care about
             user = None
             series = None
-            workid = None
-            workname = None
+            work_id = None
+            work_name = None
+
             authors = []
-            for a in sub.find_all("a"):
+
+            for a in li.find_all("a"):
+
                 if "rel" in a.attrs.keys():
                     if "author" in a["rel"]:
-                        authors.append(User(str(a.string), load=False))
+                        authors.append(str(a.string))
+
                 elif a["href"].startswith("/works"):
-                    workname = str(a.string)
-                    workid = workid_from_url(a["href"])
+                    work_name = str(a.string)
+                    work_id = workid_from_url(a["href"])
+
                 elif a["href"].startswith("/users"):
-                    type_ = "user"
                     user = User(str(a.string), load=False)
+
                 else:
-                    type_ = "series"
-                    workname = str(a.string)
+                    work_name = str(a.string)
                     series = int(a["href"].split("/")[-1])
-            if type_ == "work":
 
-                from ao3.works import Work
+            if m_work:
 
-                new = Work(workid, load=False)
-                setattr(new, "title", workname)
-                setattr(new, "authors", authors)
-                self._subscriptions.append(new)
+                sid = int(m_work.group(1))
+                title = text
+                if not authors:
+                    # Try Authors in heading with rel="author"
+                    authors = [a.get_text(strip=True) for a in heading.find_all("a", attrs={"rel": "author"})]
 
-            elif type_ == "user":
-                self._subscriptions.append(user)
+                final_item = WorkSubscriptionItem(
+                    id=sid,
+                    title=title,
+                    authors=authors,
+                    href=href,
+                    user=m_user,
+                    user_url=m_uid
+                )
 
-            elif type_ == "series":
-                new = Series(series, load=False)
-                setattr(new, "name", workname)
-                setattr(new, "authors", authors)
-                self._subscriptions.append(new)
+            elif m_series:
+
+                sid = int(m_series.group(1))
+                title = text
+
+                # Series often list authors in the heading or nearby
+                authors = [a.get_text(strip=True) for a in heading.find_all("a", attrs={"rel": "author"})]
+
+                final_item = SeriesSubscriptionItem(
+                    id=sid,
+                    title=title,
+                    authors=authors,
+                    href=href
+                )
+
+            elif m_user:
+
+                # We have explicitly got a user
+
+                # Prefer a rel="author" link as the title/identity if present
+                author_link = heading.find("a", attrs={"rel": "author"}) or a_main
+
+                title = author_link.get_text(strip=True)
+
+                # AO3 user urls: /users/<name>[/pseuds/<pseud>]
+                m_uid = re.search(r"/users/([^/]+)", author_link.get("href", "")).group(1)
+
+                # There isn't a numeric id easily; keep a stable hash? Here we fallback to 0.
+                sid = 0
+                href = author_link.get("href", href)
+
+                # Read the username out of the user link
+                try:
+                    user_text = re.match(r"/users/([^/]+)", href).group(1)
+                except AttributeError:
+                    user_text = ""
+
+                # Read the internal pseud out of the link
+                try:
+                    user_pseud = re.match(r"/users/([^/]+)/psueds/([^/]+)", href).group(2)
+                except AttributeError:
+                    user_pseud = ""
+
+                final_item = UserSubscriptionItem(
+                    id=sid,
+                    title=title,
+                    href=href,
+                    user=user_text,
+                    user_url=href,
+                    user_pseud=user_pseud
+                )
+
+            else:
+
+                # Treat anything else in the subscriptions list as a user subscription
+
+                # Prefer a rel="author" link as the title/identity if present
+                author_link = heading.find("a", attrs={"rel": "author"}) or a_main
+                title = author_link.get_text(strip=True)
+
+                # AO3 user urls: /users/<name>[/pseuds/<pseud>]
+                m_uid = re.search(r"/users/([^/]+)", author_link.get("href", "")).group(0)
+
+                # There isn't a numeric id easily; keep a stable hash? Here we fallback to 0.
+                sid = 0
+                href = author_link.get("href", href)
+
+                # Read the username out of the user link
+                try:
+                    user_text = re.match(r"/users/([^/]+)", href).group(1)
+                except AttributeError:
+                    user_text = ""
+
+                # Read the internal pseud out of the link
+                try:
+                    user_pseud = re.match(r"/users/([^/]+)/psueds/([^/]+)", href).group(2)
+                except AttributeError:
+                    user_pseud = ""
+
+                final_item = UserSubscriptionItem(
+                    id=sid,
+                    title=title,
+                    href=href,
+                    user=m_user,
+                    user_url=href,
+                    user_pseud=user_pseud,
+                )
+
+            out.append(final_item)
+
+        # Write the final subscription objects out into the cache
+        for sub_out in out:
+            if sub_out not in self._subscriptions:
+                self._subscriptions.append(sub_out)
+
+        return out
 
     @cached_property
     def _history_pages(self) -> int:
@@ -328,6 +467,7 @@ class Account(AccountAPI):
         """
 
         if self._history is None:
+
             self._history = []
 
             for page in range(start_page, self._history_pages):
@@ -606,16 +746,24 @@ class Account(AccountAPI):
 
     def get_statistics(self, year: Optional[int] = None) -> dict[str, int]:
         """
-        Return the user's statistics for a given year.
+        Return the user's work's statistics for a given year.
 
+        These are metrics such as your views, kudos, number of works e.t.c.
+        You will not see anything unless you have posted to the archive with this account.
         :param year: Which year to retrieve the stats for?
         :return:
         """
         year = "All+Years" if year is None else str(year)
         url = f"https://archiveofourown.org/users/{self.username}/stats?year={year}"
-        soup = self.request(url)
+
+        def _retry_test(target_soup: bs4.BeautifulSoup) -> Optional[bs4._typing._AtMostOneElement]:
+            return target_soup.find("dl", {"class": "statistics meta group"})
+
+        soup = self.request(url, retry_test=_retry_test)
+
         stats = {}
-        dt = soup.find("dl", {"class": "statistics meta group"})
+
+        dt = _retry_test(soup)
         if dt is not None:
 
             for field in dt.findAll("dt"):
@@ -654,6 +802,7 @@ class Account(AccountAPI):
         )
         max_page = int(page_raw[len(page_raw) - 2].text)
         works = []
+
         for page in range(max_page):
 
             fallback_count = 0

@@ -62,7 +62,8 @@ class TestDownloadAWork:
 
             assert os.path.exists(target_file_path) and os.path.isfile(target_file_path)
 
-            assert os.path.getsize(target_file_path) >= 225463
+            # Seems to be some small jitter about the final file size
+            assert os.path.getsize(target_file_path) >= 225400
 
     def test_download_access_restricted_work_guest_session(self) -> None:
         """

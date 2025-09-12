@@ -277,7 +277,7 @@ def search(
         req = requester.request("get", url)
     else:
         req = session.get(url)
-    if req.status_code == 429:
+    if req.http_status_code == 429:
         raise ao3.errors.RateLimitedException(
             "We are being rate-limited. Try again in a while or reduce the number of requests"
         )

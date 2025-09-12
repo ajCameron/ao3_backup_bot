@@ -211,14 +211,15 @@ class Ao3SessionUnPooled(GuestAo3Session):
         assert soup is not None, f"Error when getting page {login_page_url = }"
 
         input_box = soup.find("input")
+
         assert input_box is not None, f"Error finding input box during token refresh. - {soup.title.string = }"
         assert input_box["name"] == "authenticity_token"
 
         self.authenticity_token = input_box["value"]
 
-        self.do_login(username=username, password=password)
+        self.login(username=username, password=password)
 
-    def do_login(self, username: str, password: str) -> None:
+    def login(self, username: str, password: str) -> None:
         """
         We have all the components - actually log in with this session.
 
@@ -237,14 +238,14 @@ class Ao3SessionUnPooled(GuestAo3Session):
             force_session=self.session,
         )
 
-        if login_post_resp.status_code == 429:
+        if login_post_resp.http_status_code == 429:
             raise RateLimitedException(
                 "We are being rate-limited. Try again in a while or reduce the number of requests"
             )
 
         if (
             len(login_post_resp.history) == 1
-            and not login_post_resp.history[0].status_code == 302
+            and not login_post_resp.history[0].http_status_code == 302
         ):
             raise LoginException("Invalid username or password")
 
@@ -334,8 +335,8 @@ class Ao3Session(Ao3SessionUnPooled):
         def _do_login_on(sess: requests.Session) -> str:
             # 1) GET login page for token
             r = requester.get("https://archiveofourown.org/users/login", force_session=sess)
-            if r.status_code != 200:
-                raise NetworkException(f"GET /users/login -> {r.status_code}", url=r.url, status=r.status_code)
+            if r.http_status_code != 200:
+                raise NetworkException(f"GET /users/login -> {r.http_status_code}", url=r.url, status=r.http_status_code)
 
             token = self._parse_authenticity_token(r.text)
             if not token:
@@ -354,7 +355,7 @@ class Ao3Session(Ao3SessionUnPooled):
             )
 
             # Handle redirect success (AO3 login normally 302s)
-            if r2.status_code == 302:
+            if r2.http_status_code == 302:
                 loc = r2.headers.get("Location")
                 if not loc:
                     raise LoginException("Login redirect missing Location header")
@@ -364,13 +365,13 @@ class Ao3Session(Ao3SessionUnPooled):
                 return token
 
             # 200 likely indicates an error page with the form
-            if r2.status_code == 200:
+            if r2.http_status_code == 200:
                 if self._has_login_error(r2.text):
                     msg = self._extract_login_error(r2.text) or "Invalid username or password"
                     raise LoginException(msg)
                 raise LoginException("Unexpected login response (200) without redirect")
 
-            raise NetworkException(f"Login failed: {r2.status_code}", url=r2.url, status=r2.status_code)
+            raise NetworkException(f"Login failed: {r2.http_status_code}", url=r2.url, status=r2.http_status_code)
 
         # Pull (or create) the shared underlying session for this user
         proxy = session_pool.get_or_create(

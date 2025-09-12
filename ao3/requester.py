@@ -108,6 +108,12 @@ class Requester:
         """
         Finally request the actual page.
 
+        Note - this method is, intentionally, weird.
+        This module is mostly written to serve as a backend for a very long-running backup bot.
+        As such the main concern is that there methods succeed - eventually.
+        Hence the retry logic and the excessive - to the point of insane - backoff times.
+        For the designed purpose it just doesn't matter.
+        # Todo: Little configuration script with the defaults so they can be globally changed
         :param method:
         :param url:
         :param params:
@@ -175,6 +181,20 @@ class Requester:
                 except requests.RequestException as e:
                     if try_count > manual_retry:
                         raise NetworkException(str(e), url=url, method=method) from e
+
+                # We've got an SSL handshake bug - back off and try again in a bit
+                if resp is not None and resp.status_code == 525:
+
+                    try:
+                        retry_after = float(_parse_retry_after(resp.headers.get("Retry-After")))
+                    except (TypeError, ValueError):
+                        retry_after = 256.0
+
+                    # We want to over rather than under the wait
+                    retry_after += 10.0
+
+                    time.sleep(retry_after)
+                    try_count -= 1
 
                 # We're being rate limited - attempt to recover
                 if resp is not None and resp.status_code == 429:

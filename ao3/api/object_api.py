@@ -54,7 +54,9 @@ class BaseObjectAPI:
 
         retry_test: Optional[Callable[[BeautifulSoup], Optional[bs4._typing._AtMostOneElement]]] = None,
         retry_count: int = 5,
-        retry_interval: float = 30.0
+        retry_interval: float = 30.0,
+
+        recur_depth: int = 0
 
     ) -> BeautifulSoup:
         """Helper method - equest a web page and return a BeautifulSoup object.
@@ -68,6 +70,8 @@ class BaseObjectAPI:
             retry_test: If provided, then a test function to see if the soup contains needed elements
             retry_count: How many retries to attempt if the soup does not have needed elements
             retry_interval: How many seconds to wait before retry
+
+            recur_depth: Used to measure how many times we've recursed.
 
         Returns:
             bs4.BeautifulSoup: BeautifulSoup object representing the requested page's html
@@ -96,7 +100,7 @@ class BaseObjectAPI:
                 req = self.get(url, proxies=proxies, force_session=force_session)
 
                 soup = BeautifulSoup(req.content, "lxml")
-                if retry_test(soup) is not None:
+                if retry_test(soup) is not None and soup.title.string != 'archiveofourown.org | 525: SSL handshake failed':
                     break
 
                 time.sleep(retry_interval)
@@ -105,6 +109,24 @@ class BaseObjectAPI:
             self._main_page_rep = req
 
         soup = BeautifulSoup(req.content, "lxml")
+
+        # Recursion can go very wrong...
+        if soup.title.string == 'archiveofourown.org | 525: SSL handshake failed':
+
+            if recur_depth > 4:
+                raise HTTPException(f"We have tried enough - {url = } cannot be retrieved.")
+
+            return self.request(
+                url=url,
+                proxies=proxies,
+                set_main_url_req=set_main_url_req,
+                force_session=force_session,
+                retry_test=retry_test,
+                retry_count=retry_count,
+                retry_interval=retry_interval,
+                recur_depth= recur_depth + 1
+            )
+
         return soup
 
     def get(
@@ -158,7 +180,7 @@ class BaseObjectAPI:
                 proxies=proxies,
             )
 
-        if req.status_code == 429:
+        if req.http_status_code == 429:
             raise HTTPException(
                 "We are being rate-limited. Try again in a while or reduce the number of requests"
             )
@@ -221,7 +243,7 @@ class BaseObjectAPI:
                 data=data,
             )
 
-        if req.status_code == 429:
+        if req.http_status_code == 429:
             raise RateLimitedException(
                 "We are being rate-limited. Try again in a while or reduce the number of requests"
             )
