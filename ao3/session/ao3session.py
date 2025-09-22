@@ -9,7 +9,12 @@ from typing import Optional, Union
 import requests
 from bs4 import BeautifulSoup
 
-from ao3.errors import UnexpectedResponseException, RateLimitedException, LoginException, HTTPException
+from ao3.errors import (
+    UnexpectedResponseException,
+    RateLimitedException,
+    LoginException,
+    HTTPException,
+)
 from ao3 import threadable, utils
 from ao3.series import Series
 from ao3.users import User
@@ -18,7 +23,12 @@ from ao3.api.comment_session_work_api import Ao3SessionAPI, WorkAPI
 # ao3/session.py (only the login bits shown/changed)
 from ao3.session.session_pool import session_pool
 from ao3.requester import requester, Requester
-from ao3.errors import LoginException, NetworkException, UnexpectedResponseException, AuthException
+from ao3.errors import (
+    LoginException,
+    NetworkException,
+    UnexpectedResponseException,
+    AuthException,
+)
 
 
 class GuestAo3Session(Ao3SessionAPI):
@@ -212,7 +222,9 @@ class Ao3SessionUnPooled(GuestAo3Session):
 
         input_box = soup.find("input")
 
-        assert input_box is not None, f"Error finding input box during token refresh. - {soup.title.string = }"
+        assert (
+            input_box is not None
+        ), f"Error finding input box during token refresh. - {soup.title.string = }"
         assert input_box["name"] == "authenticity_token"
 
         self.authenticity_token = input_box["value"]
@@ -267,7 +279,9 @@ class Ao3SessionUnPooled(GuestAo3Session):
             raise AuthException("Invalid username or password")
 
         if title == "archiveofourown.org | 525: SSL handshake failed":
-            raise LoginException("525 error - probably cloudflare bug - rotate VPN exit node?")
+            raise LoginException(
+                "525 error - probably cloudflare bug - rotate VPN exit node?"
+            )
 
         self._subscriptions_url = (
             "https://archiveofourown.org/users/{0}/subscriptions?page={1:d}"
@@ -307,7 +321,10 @@ class Ao3SessionUnPooled(GuestAo3Session):
         forced_session = force_session if force_session is not None else self.session
 
         return super().request(
-            url=url, proxies=proxies, set_main_url_req=set_main_url_req, force_session=forced_session
+            url=url,
+            proxies=proxies,
+            set_main_url_req=set_main_url_req,
+            force_session=forced_session,
         )
 
     @property
@@ -334,9 +351,15 @@ class Ao3Session(Ao3SessionUnPooled):
 
         def _do_login_on(sess: requests.Session) -> str:
             # 1) GET login page for token
-            r = requester.get("https://archiveofourown.org/users/login", force_session=sess)
+            r = requester.get(
+                "https://archiveofourown.org/users/login", force_session=sess
+            )
             if r.http_status_code != 200:
-                raise NetworkException(f"GET /users/login -> {r.http_status_code}", url=r.url, status=r.http_status_code)
+                raise NetworkException(
+                    f"GET /users/login -> {r.http_status_code}",
+                    url=r.url,
+                    status=r.http_status_code,
+                )
 
             token = self._parse_authenticity_token(r.text)
             if not token:
@@ -367,11 +390,18 @@ class Ao3Session(Ao3SessionUnPooled):
             # 200 likely indicates an error page with the form
             if r2.http_status_code == 200:
                 if self._has_login_error(r2.text):
-                    msg = self._extract_login_error(r2.text) or "Invalid username or password"
+                    msg = (
+                        self._extract_login_error(r2.text)
+                        or "Invalid username or password"
+                    )
                     raise LoginException(msg)
                 raise LoginException("Unexpected login response (200) without redirect")
 
-            raise NetworkException(f"Login failed: {r2.http_status_code}", url=r2.url, status=r2.http_status_code)
+            raise NetworkException(
+                f"Login failed: {r2.http_status_code}",
+                url=r2.url,
+                status=r2.http_status_code,
+            )
 
         # Pull (or create) the shared underlying session for this user
         proxy = session_pool.get_or_create(
@@ -389,5 +419,3 @@ class Ao3Session(Ao3SessionUnPooled):
         # If you keep a token attribute on Session, reflect it:
         # (pool set_token() already applied)
         self.authenticity_token = getattr(self, "authenticity_token", None)  # optional
-
-

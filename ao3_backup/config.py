@@ -1,3 +1,7 @@
+"""
+Config options for the system.
+"""
+
 import os
 from pathlib import Path
 

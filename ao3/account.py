@@ -1,4 +1,3 @@
-
 """
 The Account class contains methods to interact with your account.
 
@@ -25,7 +24,13 @@ from ao3.api.comment_session_work_api import WorkAPI, Ao3SessionAPI
 from ao3.users import User
 from ao3.series import Series
 from ao3.utils import workid_from_url, ao3_parse_date, ao3_parse_int
-from ao3.models import HistoryItem, SubscriptionItem, WorkSubscriptionItem, SeriesSubscriptionItem, UserSubscriptionItem
+from ao3.models import (
+    HistoryItem,
+    SubscriptionItem,
+    WorkSubscriptionItem,
+    SeriesSubscriptionItem,
+    UserSubscriptionItem,
+)
 
 from ao3.errors import HTTPException
 
@@ -150,7 +155,9 @@ class Account(AccountAPI):
 
         return n
 
-    def get_work_subscriptions(self, use_threading: bool = False) -> list[WorkSubscriptionItem]:
+    def get_work_subscriptions(
+        self, use_threading: bool = False
+    ) -> list[WorkSubscriptionItem]:
         """
         Get subscribed works. Loads them if they haven't been previously
 
@@ -168,7 +175,9 @@ class Account(AccountAPI):
 
         return work_subs
 
-    def get_series_subscriptions(self, use_threading: bool = False) -> list[SeriesSubscriptionItem]:
+    def get_series_subscriptions(
+        self, use_threading: bool = False
+    ) -> list[SeriesSubscriptionItem]:
         """
         Get subscribed series. Loads them if they haven't been previously
 
@@ -184,7 +193,9 @@ class Account(AccountAPI):
 
         return series_subs
 
-    def get_user_subscriptions(self, use_threading: bool = False) -> list[UserSubscriptionItem]:
+    def get_user_subscriptions(
+        self, use_threading: bool = False
+    ) -> list[UserSubscriptionItem]:
         """
         Get subscribed users. Loads them if they haven't been previously
 
@@ -200,9 +211,7 @@ class Account(AccountAPI):
 
         return user_subs
 
-    def get_subscriptions(
-        self, use_threading: bool = False
-    ) -> list[SubscriptionItem]:
+    def get_subscriptions(self, use_threading: bool = False) -> list[SubscriptionItem]:
         """
         Get user's subscriptions.
 
@@ -245,7 +254,10 @@ class Account(AccountAPI):
         :param page:
         :return:
         """
-        def _retry_test(target_soup: bs4.BeautifulSoup) -> Optional[bs4._typing._AtMostOneElement]:
+
+        def _retry_test(
+            target_soup: bs4.BeautifulSoup,
+        ) -> Optional[bs4._typing._AtMostOneElement]:
             return target_soup.find("dl", {"class": "subscription index group"})
 
         url = self.get_subscriptions_url(page=page)
@@ -259,7 +271,9 @@ class Account(AccountAPI):
             self._subscriptions = []
 
         subscriptions = soup.find("dl", {"class": "subscription index group"})
-        assert subscriptions is not None, f"Call to subscriptions url at {url = } failed! title = {soup.title.str}"
+        assert (
+            subscriptions is not None
+        ), f"Call to subscriptions url at {url = } failed! title = {soup.title.str}"
 
         for li in subscriptions.find_all("dt"):
 
@@ -279,10 +293,11 @@ class Account(AccountAPI):
             m_series = re.search(r"/series/(\d+)", href)
             m_user = re.search(r"/users/([^/]+)", href) and not (m_work or m_series)
 
-            assert sum([bool(m_work), bool(m_series), bool(m_user)]) == 1, \
-                f"More than one thing was truthy at the same time - {m_work = } {m_series} {m_user = }"
+            assert (
+                sum([bool(m_work), bool(m_series), bool(m_user)]) == 1
+            ), f"More than one thing was truthy at the same time - {m_work = } {m_series} {m_user = }"
 
-            m_uid = None # Will be filled out later if present
+            m_uid = None  # Will be filled out later if present
 
             # Try and generic trawl for all the information we care about
             user = None
@@ -315,7 +330,10 @@ class Account(AccountAPI):
                 title = text
                 if not authors:
                     # Try Authors in heading with rel="author"
-                    authors = [a.get_text(strip=True) for a in heading.find_all("a", attrs={"rel": "author"})]
+                    authors = [
+                        a.get_text(strip=True)
+                        for a in heading.find_all("a", attrs={"rel": "author"})
+                    ]
 
                 final_item = WorkSubscriptionItem(
                     id=sid,
@@ -323,7 +341,7 @@ class Account(AccountAPI):
                     authors=authors,
                     href=href,
                     user=m_user,
-                    user_url=m_uid
+                    user_url=m_uid,
                 )
 
             elif m_series:
@@ -332,13 +350,13 @@ class Account(AccountAPI):
                 title = text
 
                 # Series often list authors in the heading or nearby
-                authors = [a.get_text(strip=True) for a in heading.find_all("a", attrs={"rel": "author"})]
+                authors = [
+                    a.get_text(strip=True)
+                    for a in heading.find_all("a", attrs={"rel": "author"})
+                ]
 
                 final_item = SeriesSubscriptionItem(
-                    id=sid,
-                    title=title,
-                    authors=authors,
-                    href=href
+                    id=sid, title=title, authors=authors, href=href
                 )
 
             elif m_user:
@@ -351,7 +369,9 @@ class Account(AccountAPI):
                 title = author_link.get_text(strip=True)
 
                 # AO3 user urls: /users/<name>[/pseuds/<pseud>]
-                m_uid = re.search(r"/users/([^/]+)", author_link.get("href", "")).group(1)
+                m_uid = re.search(r"/users/([^/]+)", author_link.get("href", "")).group(
+                    1
+                )
 
                 # There isn't a numeric id easily; keep a stable hash? Here we fallback to 0.
                 sid = 0
@@ -365,7 +385,9 @@ class Account(AccountAPI):
 
                 # Read the internal pseud out of the link
                 try:
-                    user_pseud = re.match(r"/users/([^/]+)/psueds/([^/]+)", href).group(2)
+                    user_pseud = re.match(r"/users/([^/]+)/psueds/([^/]+)", href).group(
+                        2
+                    )
                 except AttributeError:
                     user_pseud = ""
 
@@ -375,7 +397,7 @@ class Account(AccountAPI):
                     href=href,
                     user=user_text,
                     user_url=href,
-                    user_pseud=user_pseud
+                    user_pseud=user_pseud,
                 )
 
             else:
@@ -387,7 +409,9 @@ class Account(AccountAPI):
                 title = author_link.get_text(strip=True)
 
                 # AO3 user urls: /users/<name>[/pseuds/<pseud>]
-                m_uid = re.search(r"/users/([^/]+)", author_link.get("href", "")).group(0)
+                m_uid = re.search(r"/users/([^/]+)", author_link.get("href", "")).group(
+                    0
+                )
 
                 # There isn't a numeric id easily; keep a stable hash? Here we fallback to 0.
                 sid = 0
@@ -401,7 +425,9 @@ class Account(AccountAPI):
 
                 # Read the internal pseud out of the link
                 try:
-                    user_pseud = re.match(r"/users/([^/]+)/psueds/([^/]+)", href).group(2)
+                    user_pseud = re.match(r"/users/([^/]+)/psueds/([^/]+)", href).group(
+                        2
+                    )
                 except AttributeError:
                     user_pseud = ""
 
@@ -442,28 +468,28 @@ class Account(AccountAPI):
         start_page: int = 0,
         max_pages: Optional[int] = None,
         timeout_sleep: Optional[int] = 60,
-        force_refresh: bool = False
+        force_refresh: bool = False,
     ) -> Optional[list[list[WorkAPI, int, datetime.datetime]]]:
         """
-       Get history works.
+        Get history works.
 
-       Loads them if they haven't been previously.
+        Loads them if they haven't been previously.
 
-       Arguments:
-         hist_sleep (int to sleep between requests)
-         start_page (int for page to start on, zero-indexed)
-         max_pages  (int for page to end on, zero-indexed)
-         timeout_sleep (int, if set will attempt to recovery from http errors, likely timeouts, if set to None
-         will just attempt to load)
-         force_refresh (bool):
-         use_load_history_fallback (bool):
+        Arguments:
+          hist_sleep (int to sleep between requests)
+          start_page (int for page to start on, zero-indexed)
+          max_pages  (int for page to end on, zero-indexed)
+          timeout_sleep (int, if set will attempt to recovery from http errors, likely timeouts, if set to None
+          will just attempt to load)
+          force_refresh (bool):
+          use_load_history_fallback (bool):
 
-        takes two arguments the first hist_sleep is an int and is a sleep to run between pages of history to load to
-        avoid hitting the rate limiter, the second is an int of the maximum number of pages of history to load, by
-        default this is None so loads them all.
+         takes two arguments the first hist_sleep is an int and is a sleep to run between pages of history to load to
+         avoid hitting the rate limiter, the second is an int of the maximum number of pages of history to load, by
+         default this is None so loads them all.
 
-       Returns:
-           list: List of tuples (Work, number-of-visits, datetime-last-visited)
+        Returns:
+            list: List of tuples (Work, number-of-visits, datetime-last-visited)
         """
 
         if self._history is None:
@@ -493,7 +519,9 @@ class Account(AccountAPI):
 
                         fallback_count += 1
                         if fallback_count > fail_at_count:
-                            self._logger.error(f"fallback_count tripped as {fallback_count = }")
+                            self._logger.error(
+                                f"fallback_count tripped as {fallback_count = }"
+                            )
                             break
 
                 # Check for maximum history page load
@@ -517,7 +545,9 @@ class Account(AccountAPI):
         url = self._history_url.format(self.username, page)
         return url
 
-    def _load_history(self, page: int = 1, override_soup: Optional[bs4.BeautifulSoup] = None) -> list[HistoryItem]:
+    def _load_history(
+        self, page: int = 1, override_soup: Optional[bs4.BeautifulSoup] = None
+    ) -> list[HistoryItem]:
         """
         Fallback method to load a single page from history.
 
@@ -525,7 +555,10 @@ class Account(AccountAPI):
         :param override_soup: Allows parsing testing by looping in existing soup instace
         :return:
         """
-        def _retry_test(target_soup: bs4.BeautifulSoup) -> Optional[bs4._typing._AtMostOneElement]:
+
+        def _retry_test(
+            target_soup: bs4.BeautifulSoup,
+        ) -> Optional[bs4._typing._AtMostOneElement]:
             return target_soup.find("ol", {"class": "reading work index group"})
 
         if override_soup is None:
@@ -541,9 +574,10 @@ class Account(AccountAPI):
 
             # Authors
             h = item.find("h4", class_=re.compile(r"\bheading\b"))
-            authors = [a.get_text(strip=True) for a in
-                       (h.find_all("a", attrs={"rel": "author"}) if h else [])
-                       ]
+            authors = [
+                a.get_text(strip=True)
+                for a in (h.find_all("a", attrs={"rel": "author"}) if h else [])
+            ]
 
             # Title
             h = item.find("h4", class_=re.compile(r"\bheading\b"))
@@ -604,7 +638,6 @@ class Account(AccountAPI):
                     words=words,
                     visited_date=visited_date,
                     visited_num=visited_num,
-
                 )
 
                 if hist_item not in self._history:
@@ -613,7 +646,6 @@ class Account(AccountAPI):
                 this_page_history.append(hist_item)
 
         return this_page_history
-
 
     @cached_property
     def _bookmark_pages(self) -> int:
@@ -672,7 +704,9 @@ class Account(AccountAPI):
         """
         url = self._bookmarks_url.format(self.username, page)
 
-        def _retry_test(target_soup: bs4.BeautifulSoup) -> Optional[bs4._typing._AtMostOneElement]:
+        def _retry_test(
+            target_soup: bs4.BeautifulSoup,
+        ) -> Optional[bs4._typing._AtMostOneElement]:
             return target_soup.find("ol", {"class": "bookmark index group"})
 
         soup = self.request(url, retry_test=_retry_test)
@@ -723,14 +757,20 @@ class Account(AccountAPI):
 
         url = self._bookmarks_url.format(self.username, 1)
 
-        def _retry_test(target_soup: bs4.BeautifulSoup) -> Optional[bs4._typing._AtMostOneElement]:
-            return target_soup.find("div", {"class": "bookmarks-index dashboard filtered region"})
+        def _retry_test(
+            target_soup: bs4.BeautifulSoup,
+        ) -> Optional[bs4._typing._AtMostOneElement]:
+            return target_soup.find(
+                "div", {"class": "bookmarks-index dashboard filtered region"}
+            )
 
         soup = self.request(url, retry_test=_retry_test)
         div = _retry_test(soup)
 
         if div is None:
-            raise HTTPException(f"Call to get bookmarks returned malformed {url = } - {soup.title.str = }.")
+            raise HTTPException(
+                f"Call to get bookmarks returned malformed {url = } - {soup.title.str = }."
+            )
 
         h2 = div.h2.text.split()
 
@@ -741,8 +781,9 @@ class Account(AccountAPI):
                 return int(h2[0].replace(",", ""))
             except IndexError:
                 pass
-            raise IndexError(f"{h2 = } malformed and fallback failed "
-                             f"- \n{url = }\n{div = }") from e
+            raise IndexError(
+                f"{h2 = } malformed and fallback failed " f"- \n{url = }\n{div = }"
+            ) from e
 
     def get_statistics(self, year: Optional[int] = None) -> dict[str, int]:
         """
@@ -756,7 +797,9 @@ class Account(AccountAPI):
         year = "All+Years" if year is None else str(year)
         url = f"https://archiveofourown.org/users/{self.username}/stats?year={year}"
 
-        def _retry_test(target_soup: bs4.BeautifulSoup) -> Optional[bs4._typing._AtMostOneElement]:
+        def _retry_test(
+            target_soup: bs4.BeautifulSoup,
+        ) -> Optional[bs4._typing._AtMostOneElement]:
             return target_soup.find("dl", {"class": "statistics meta group"})
 
         soup = self.request(url, retry_test=_retry_test)
@@ -818,7 +861,9 @@ class Account(AccountAPI):
                     for work in works_raw:
                         try:
                             work_id = int(work.h4.a.get("href").split("/")[2])
-                            works.append(Work(work_id, session=self.session, load=False))
+                            works.append(
+                                Work(work_id, session=self.session, load=False)
+                            )
                         except AttributeError:
                             pass
                     grabbed = True
@@ -827,7 +872,9 @@ class Account(AccountAPI):
 
             fallback_count += 1
             if fallback_count > fail_at_count:
-                self._logger.error(f"While loop is failing at {fallback_count = } - this is frankly alarming.")
+                self._logger.error(
+                    f"While loop is failing at {fallback_count = } - this is frankly alarming."
+                )
 
             time.sleep(sleep)
         return works

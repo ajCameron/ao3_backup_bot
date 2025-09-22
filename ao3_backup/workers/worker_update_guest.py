@@ -1,15 +1,18 @@
 """
-Worker which downloads guest accessible works from the archive.
+Worker which attempts to consume update actions off the queue - in the case where auth is not needed.
 """
 
+# Todo: Handle case of works BEING MADE private
+
 from __future__ import annotations
+
+from typing import Optional
 
 import concurrent.futures
 import os
 import time
 import json
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 
 from ao3_backup.config import CLAIM_BATCH, PARALLELISM
 from ao3_backup.db import (
@@ -18,30 +21,30 @@ from ao3_backup.db import (
     requeue,
     fetch_log,
     declare_work,
-    declare_works_cannot_access,
-    declare_work_not_found,
     enqueue_work_for_auth_access,
+    declare_works_cannot_access,
     dequeue_work,
+    declare_work_not_found,
     log_fetch_result,
 )
 from ao3_backup.fetchers.fetch_public import fetch_public
 from ao3_backup.storage import write_html_gz
 
 
-def run(worker_name: str = None, parallelism: int | None = None) -> None:
+def run_update_guest(worker_name: str = None, parallelism: int | None = None) -> None:
     """
-    Run the worker - consume ids and try and access them in guest mode.
+    Run the update worker.
 
     :param worker_name:
     :param parallelism:
     :return:
     """
     eng = get_engine()
-    name = worker_name or f"{os.uname().nodename}-{os.getpid()}-guest"
+    name = worker_name or f"{os.uname().nodename}-{os.getpid()}-update"
 
     def handle_one_safe(ao3_id: int) -> tuple[str, int, str]:
         """
-        Attempt to process a single id - safely.
+        Handle an id - wrapped in an exception block to ensure it never errors.
 
         :param ao3_id:
         :return:
@@ -51,30 +54,36 @@ def run(worker_name: str = None, parallelism: int | None = None) -> None:
         except Exception as e:
             with Session(eng) as s, s.begin():
                 requeue(s, ao3_id, delay_seconds=300, error_msg=str(e))
-            return ("error", 0, str(e))
+            return "error", 0, str(e)
 
-    def handle_one(ao3_id: int) -> tuple[str, int, str]:
+    def handle_one(ao3_id: int) -> tuple[str, int, Optional[str]]:
         """
-        Attempt to handle a single id - dangerously.
+        Handle a single id.
 
         :param ao3_id:
         :return:
         """
-        # todo: all fetch publics need to be fixed
-        outcome, http, html, final_url, meta = fetch_public(ao3_id)
 
-        # The work is public and has been downloaded
+        fetch_result = fetch_public(ao3_id)
+
+        outcome = fetch_result.outcome
+        http_status_code = fetch_result.http_status_code
+        html = fetch_result.html
+        final_url = fetch_result.final_url
+        meta = fetch_result.meta
+
+        # We've found and updated the work - and without auth
         if outcome == "public":
 
             size, sha = write_html_gz(ao3_id, html)
-
             with Session(eng) as s, s.begin():
 
+                # Note our great success
                 declare_work(
                     db_session=s,
                     ao3_id=ao3_id,
                     outcome="public",
-                    http_status_code=http,
+                    http_status_code=http_status_code,
                     sha=sha,
                     size=size,
                     title=meta.get("title"),
@@ -107,94 +116,104 @@ def run(worker_name: str = None, parallelism: int | None = None) -> None:
                     hits=meta.get("hits"),
                     summary=meta.get("summary"),
                     raw_meta=json.dumps(meta, ensure_ascii=False),
-                    remove_from_queue=True,
                 )
-
-                log_fetch_result(
-                    db_session=s,
-                    ao3_id=ao3_id,
-                    worker_name=name,
-                    outcome="public",
-                    http_status_code=http,
-                    size_bytes=size,
-                )
-
-            return (outcome, http, None)
-
-        elif outcome == "restricted":
-
-            size, sha = write_html_gz(ao3_id, html)
-            with Session(eng) as s, s.begin():
-
-                declare_works_cannot_access(
-                    db_session=s,
-                    ao3_id=ao3_id,
-                    status='restricted',
-                    http_status_code=http,
-                    sha=sha,
-                    size=size
-                )
-
-                enqueue_work_for_auth_access(db_session=s, ao3_id=ao3_id)
-
-                # Should already be gone - but to make sure
-                dequeue_work(db_session=s, ao3_id=ao3_id, mode="guest")
 
                 s.execute(
                     fetch_log.insert().values(
                         ao3_id=ao3_id,
                         worker=name,
-                        outcome="restricted",
-                        http_status=http,
+                        outcome="public-update",
+                        http_status=http_status_code,
                         size_bytes=size,
                     )
                 )
-            return ("restricted", http, None)
+            return ("public-update", http_status_code, None)
 
-        elif outcome == "unrevealed":
+        # We cannot download without auth
+        elif outcome == "restricted":
 
+            # Todo: Want to save both the guest html and the main html
             size, sha = write_html_gz(ao3_id, html)
+
             with Session(eng) as s, s.begin():
 
                 declare_works_cannot_access(
                     db_session=s,
                     ao3_id=ao3_id,
-                    status='unrevealed',
-                    http_status_code=http,
+                    status="restrcted",
+                    http_status_code=http_status_code,
                     sha=sha,
-                    size=size
+                    size=size,
                 )
 
+                # We need to come back with an authed session to update this work
+                dequeue_work(db_session=s, ao3_id=ao3_id)
+                enqueue_work_for_auth_access(db_session=s, ao3_id=ao3_id)
+
+                log_fetch_result(
+                    db_session=s,
+                    ao3_id=ao3_id,
+                    worker_name=name,
+                    outcome="restricted-update",
+                    http_status_code=http_status_code,
+                    size_bytes=size,
+                )
+
+            return ("restricted-update", http_status_code, None)
+
+        # Todo: Are some works unrevealed to guests but revealed to users?
+        elif outcome == "unrevealed":
+
+            size, sha = write_html_gz(ao3_id, html)
+            with Session(eng) as s, s.begin():
+
+                # We're probably not getting this work
+                declare_works_cannot_access(
+                    db_session=s,
+                    ao3_id=ao3_id,
+                    status="unrevealed",
+                    http_status_code=http_status_code,
+                    sha=sha,
+                    size=size,
+                )
+
+                # We've "succeeded" - remove from queue
+                dequeue_work(db_session=s, ao3_id=ao3_id)
+
+                # Log the fetch result to the table
+                log_fetch_result(
+                    db_session=s,
+                    ao3_id=ao3_id,
+                    worker_name=name,
+                    outcome=outcome,
+                    http_status_code=http_status_code,
+                    size_bytes=size,
+                )
+
+            return ("unrevealed-update", http_status_code, None)
+
+        elif outcome == "not_found":
+
+            with Session(eng) as s, s.begin():
+
+                # We're probably not getting this work
+                declare_work_not_found(db_session=s, ao3_id=ao3_id)
+
+                # We've "succeeded" - remove from queue
                 dequeue_work(db_session=s, ao3_id=ao3_id)
 
                 log_fetch_result(
                     db_session=s,
                     ao3_id=ao3_id,
                     worker_name=name,
-                    outcome="unrevealed",
-                    http_status_code=http,
-                    size_bytes=size
+                    outcome="not_found-update",
+                    http_status_code=http_status_code,
+                    size_bytes=0,
                 )
 
-            return ("unrevealed", http, None)
+            return ("not_found-update", http_status_code, None)
 
-        elif outcome == "not_found":
-
-            with Session(eng) as s, s.begin():
-
-                declare_work_not_found(db_session=s, ao3_id=ao3_id)
-
-                log_fetch_result(
-                    db_session=s,
-                    ao3_id=ao3_id,
-                    worker_name=worker_name,
-                    outcome=outcome,
-                    http_status_code=http,
-                    size_bytes=0
-                )
-
-            return ("not_found", http, None)
-
+        # Something has gone kinda weird - try and record it
         else:
 
             with Session(eng) as s, s.begin():
@@ -204,13 +223,12 @@ def run(worker_name: str = None, parallelism: int | None = None) -> None:
                     delay_seconds=600,
                     error_msg=f"unexpected outcome {outcome}",
                 )
-
             return ("error", 0, f"unexpected outcome {outcome}")
 
     while True:
 
         with Session(eng) as s, s.begin():
-            ids = claim_batch(s, name, CLAIM_BATCH, mode="guest")
+            ids = claim_batch(s, name, CLAIM_BATCH, mode="update")
 
         if not ids:
             time.sleep(2.0)
@@ -222,6 +240,6 @@ def run(worker_name: str = None, parallelism: int | None = None) -> None:
             for id_, res in zip(ids, pool.map(handle_one_safe, ids)):
                 outcome, http, err = res
                 print(
-                    f"[guest] {id_}: {outcome} (http={http})"
+                    f"[update] {id_}: {outcome} (http={http})"
                     + (f" ERR={err}" if err else "")
                 )

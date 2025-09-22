@@ -1,4 +1,3 @@
-
 """
 We're testing the work class.
 
@@ -16,6 +15,7 @@ class TestWorkBadStory:
     """
     Not actually bad - just doesn't actually exist.
     """
+
     def test_work_story_1(self) -> None:
         """
         We're going to load story 1.
@@ -32,7 +32,3 @@ class TestWorkBadStory:
 
         with pytest.raises(WorkNotFoundException):
             ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
-
-
-
-

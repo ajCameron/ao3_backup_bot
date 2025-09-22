@@ -321,7 +321,7 @@ RATING_STR_TO_INT = {
     ("G", "General", "PG"): 10,
     ("T", "Teen", "12"): 11,
     ("M", "Mature", "15"): 12,
-    ("E", "Exp", "Explicit"): 13
+    ("E", "Exp", "Explicit"): 13,
 }
 
 
@@ -337,7 +337,8 @@ def _normalize_rating(rating: Union[str, int]) -> int:
             raise TypeError(
                 f"{rating = } couldn't be normalised - "
                 f"please pass integer in "
-                f"{[rn for rn in RATING_STR_TO_INT.keys()]}")
+                f"{[rn for rn in RATING_STR_TO_INT.keys()]}"
+            )
 
     for rt in RATING_STR_TO_INT:
         if rating.lower() in [_.lower() for _ in rt]:
@@ -347,5 +348,3 @@ def _normalize_rating(rating: Union[str, int]) -> int:
         f"{rating = } couldn't be normalized. "
         f"Mapping {RATING_STR_TO_INT = } does not contain it."
     )
-
-

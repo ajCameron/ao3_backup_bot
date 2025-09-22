@@ -1,4 +1,3 @@
-
 from ao3 import search, utils
 
 
@@ -15,8 +14,7 @@ def test_search_query_fields_build() -> None:
         single_chapter=True,
         word_count=utils.Constraint(1000, 5000),
         language="en",
-        rating="G"
+        rating="G",
     )
 
     assert search_object is not None
-

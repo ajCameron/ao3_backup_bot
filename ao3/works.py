@@ -17,7 +17,15 @@ from ao3.chapters import Chapter
 from ao3.comments import Comment
 from ao3.users import User
 from ao3.utils import urls_match
-from ao3.errors import AuthException, WorkNotFoundException, UnloadedException, HTTPException, DownloadException, UnexpectedResponseException, BookmarkException
+from ao3.errors import (
+    AuthException,
+    WorkNotFoundException,
+    UnloadedException,
+    HTTPException,
+    DownloadException,
+    UnexpectedResponseException,
+    BookmarkException,
+)
 
 ALLOWED_FILE_TYPES = ["AZW3", "EPUB", "HTML", "MOBI", "PDF"]
 
@@ -235,9 +243,7 @@ class Work(WorkAPI):
         download_btn = self._soup.find("li", {"class": "download"})
 
         if download_btn is None:
-            raise AuthException(
-                "Cannot find download class - you may need to log in?"
-            )
+            raise AuthException("Cannot find download class - you may need to log in?")
 
         for download_type in download_btn.findAll("li"):
 

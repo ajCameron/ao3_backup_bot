@@ -12,6 +12,7 @@ from requests.adapters import HTTPAdapter
 
 class DummyAdapter(HTTPAdapter):
     """Adapter that always fails: simulates 'no real network'."""
+
     def send(self, request, **kwargs):
         """
         Put a request
@@ -25,6 +26,7 @@ class DummyAdapter(HTTPAdapter):
 
 class CountingSession(requests.Session):
     """Session that counts mount() calls and preserves mounted adapters."""
+
     def __init__(self, *args, **kwargs):
         # Not sure why this is needed... but it is
         self.mount_calls = []
@@ -50,6 +52,7 @@ class CountingSession(requests.Session):
 
         self.mount_calls.append((prefix, adapter))
         return super().mount(prefix, adapter)
+
 
 # ---- Tests ----
 
@@ -83,7 +86,9 @@ def test_force_session_is_used_and_not_modified(monkeypatch):
     assert s.adapters["https://"] is dummy_https
 
     # No *extra* mounts happened during the call
-    assert s.mount_calls == baseline_mounts, f"Requester modified forced session: {s.mount_calls!r}"
+    assert (
+        s.mount_calls == baseline_mounts
+    ), f"Requester modified forced session: {s.mount_calls!r}"
 
 
 def test_force_session_exact_object_is_used(monkeypatch):
@@ -130,6 +135,7 @@ def test_default_session_mounts_adapters(monkeypatch):
 
     # Spy on all future Session.mount calls
     original_mount = requests.Session.mount
+
     def spy_mount(self, prefix, adapter):
         mounted.append((prefix, type(adapter)))
         return original_mount(self, prefix, adapter)
@@ -148,7 +154,9 @@ def test_default_session_mounts_adapters(monkeypatch):
 
     # Expect at least http/https mounts; order not guaranteed
     schemes = {prefix for (prefix, _adapter_type) in mounted}
-    assert "http://" in schemes and "https://" in schemes, f"No http/https mounts recorded: {mounted!r}"
+    assert (
+        "http://" in schemes and "https://" in schemes
+    ), f"No http/https mounts recorded: {mounted!r}"
 
 
 def test_force_session_survives_retry_wrapper(monkeypatch):
@@ -167,7 +175,9 @@ def test_force_session_survives_retry_wrapper(monkeypatch):
     s.mount("http://", dummy_http)
     s.mount("https://", dummy_https)
 
-    assert len(s.mount_calls) == 2, f"Expected exactly two initial mounts, got {s.mount_calls!r}"
+    assert (
+        len(s.mount_calls) == 2
+    ), f"Expected exactly two initial mounts, got {s.mount_calls!r}"
 
     baseline_http = s.adapters["http://"]
     baseline_https = s.adapters["https://"]
@@ -182,4 +192,6 @@ def test_force_session_survives_retry_wrapper(monkeypatch):
     assert s.adapters["https://"] is baseline_https
 
     # And still no extra mount calls
-    assert len(s.mount_calls) == 2, f"Expected exactly two initial mounts, got {s.mount_calls!r}"
+    assert (
+        len(s.mount_calls) == 2
+    ), f"Expected exactly two initial mounts, got {s.mount_calls!r}"

@@ -58,11 +58,7 @@ from ao3 import utils
 from ao3 import search
 
 # Typed, user-facing exceptions
-from ao3.errors import (
-    LoginException,
-    DownloadException,
-NetworkException
-)
+from ao3.errors import LoginException, DownloadException, NetworkException
 
 # Optional: expose a canonical list of supported download file types if your
 # Work model defines one. We fall back gracefully if it doesn’t exist.

@@ -1,7 +1,7 @@
-
 """
 Debugging the auth flow from session.
 """
+
 import datetime
 from typing import Optional, Union
 
@@ -56,17 +56,26 @@ class TestSessionLoginFollowedByAccountCallsUnthreaded:
 
         test_account = Account(session=test_session)
 
-        assert test_account.get_subscriptions_url(1) \
-               == \
-               "https://archiveofourown.org/users/thomaswpaine/subscriptions?page=1"
+        assert (
+            test_account.get_subscriptions_url(1)
+            == "https://archiveofourown.org/users/thomaswpaine/subscriptions?page=1"
+        )
 
-        assert test_session.post_login_title == 'thomaswpaine | Archive of Our Own'
+        assert test_session.post_login_title == "thomaswpaine | Archive of Our Own"
 
-        subbed_series = test_account.get_series_subscriptions(use_threading=self.use_threading)
-        assert isinstance(subbed_series, list), "Expecting a list back, and didn't get it."
+        subbed_series = test_account.get_series_subscriptions(
+            use_threading=self.use_threading
+        )
+        assert isinstance(
+            subbed_series, list
+        ), "Expecting a list back, and didn't get it."
 
-        subbed_works = test_account.get_work_subscriptions(use_threading=self.use_threading)
-        assert isinstance(subbed_works, list), "Expecting a list back, and didn't get it."
+        subbed_works = test_account.get_work_subscriptions(
+            use_threading=self.use_threading
+        )
+        assert isinstance(
+            subbed_works, list
+        ), "Expecting a list back, and didn't get it."
 
         full_history = test_account.get_history()
         assert isinstance(full_history, list)
@@ -94,7 +103,9 @@ class TestSessionLoginFollowedByAccountCallsUnthreaded:
             assert isinstance(book_mark, Work)
 
 
-class TestSessionLoginFollowedByAccountCallsThreaded(TestSessionLoginFollowedByAccountCallsUnthreaded):
+class TestSessionLoginFollowedByAccountCallsThreaded(
+    TestSessionLoginFollowedByAccountCallsUnthreaded
+):
     """
     We're going to login to a session and then we're going to run all methods that touch the site.
 
@@ -105,6 +116,7 @@ class TestSessionLoginFollowedByAccountCallsThreaded(TestSessionLoginFollowedByA
 
     Using threaded methods.
     """
+
     use_threading = True
 
 
@@ -112,7 +124,6 @@ class TestAccountGetHistory:
     """
     Tests, in detail, the get_history method on the Account class.
     """
-
 
     def test_account_get_history(self) -> None:
         """

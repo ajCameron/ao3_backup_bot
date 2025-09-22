@@ -1,4 +1,3 @@
-
 """
 Tests for the series class.
 
@@ -18,6 +17,7 @@ class TestSeriesExists:
     """
     Tests a series that exists and we should be able to access.
     """
+
     def test_series_exists_unauthed_session(self) -> None:
         """
         We're going to load story 1.
@@ -31,16 +31,12 @@ class TestSeriesExists:
 
         from ao3.session.api import GuestAo3Session
 
-        test_series = Series(
-            seriesid=4676659,
-            session=GuestAo3Session(),
-            load=True
-        )
+        test_series = Series(seriesid=4676659, session=GuestAo3Session(), load=True)
 
         assert test_series is not None
         assert test_series == test_series
 
-        assert repr(test_series) == '<Series [Lower Decks Continues]>'
+        assert repr(test_series) == "<Series [Lower Decks Continues]>"
 
     def test_cannot_subscribe_unauthed_session(self) -> None:
         """
@@ -52,11 +48,7 @@ class TestSeriesExists:
 
         from ao3.session.api import GuestAo3Session
 
-        test_series = Series(
-            seriesid=4676659,
-            session=GuestAo3Session(),
-            load=True
-        )
+        test_series = Series(seriesid=4676659, session=GuestAo3Session(), load=True)
 
         with pytest.raises(AuthException):
             test_series.subscribe()
@@ -72,11 +64,7 @@ class TestSeriesExists:
         """
         test_session = get_authed_session()
 
-        test_series = Series(
-            seriesid=4676659,
-            session=test_session,
-            load=True
-        )
+        test_series = Series(seriesid=4676659, session=test_session, load=True)
 
         subbed_property = test_series.is_subscribed
 
@@ -91,17 +79,10 @@ class TestSeriesExists:
         test_session = get_authed_session()
         test_session.refresh_auth_token()
 
-        test_series = Series(
-            seriesid=4676659,
-            session=test_session,
-            load=True
-        )
+        test_series = Series(seriesid=4676659, session=test_session, load=True)
 
         test_series.subscribe()
 
         time.sleep(0.5)
 
         test_series.unsubscribe()
-
-
-

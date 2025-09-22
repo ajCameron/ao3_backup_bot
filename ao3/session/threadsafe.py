@@ -28,7 +28,7 @@ class ThreadSafeSessionProxy:
         self._token: Optional[str] = None
         self._tw = float(token_window_seconds)
         self._tcap = max(1, int(token_requests_per_window))
-        self._tokens = float(self._tcap)   # start full
+        self._tokens = float(self._tcap)  # start full
         self._last = time.monotonic()
 
     # ---- token mgmt ---------------------------------------------------------
@@ -72,9 +72,14 @@ class ThreadSafeSessionProxy:
         with self._lock:
             self._throttle_token()
             return self._session.request(
-                method=method, url=url,
-                params=params, data=data, headers=headers,
-                allow_redirects=allow_redirects, timeout=timeout, proxies=proxies
+                method=method,
+                url=url,
+                params=params,
+                data=data,
+                headers=headers,
+                allow_redirects=allow_redirects,
+                timeout=timeout,
+                proxies=proxies,
             )
 
     # ---- allow Requester to mount adapters / set headers --------------------

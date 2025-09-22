@@ -1,7 +1,7 @@
-
 """
 Diving into and debugging the account.get_history method - because something seems to be going wrong.
 """
+
 import datetime
 from typing import Optional, Union
 
@@ -73,9 +73,10 @@ class TestAccountGetHistory:
         test_account = Account(session=test_session)
 
         history_page_url = test_account.get_history_page_url(page=1)
-        assert test_account.get_history_page_url(page=1) \
-               == \
-               "https://archiveofourown.org/users/thomaswpaine/readings?page=1"
+        assert (
+            test_account.get_history_page_url(page=1)
+            == "https://archiveofourown.org/users/thomaswpaine/readings?page=1"
+        )
 
         soup = test_account.request(history_page_url)
 
@@ -84,7 +85,9 @@ class TestAccountGetHistory:
         root = soup
         assert root.find_all("li", attrs={"role": "article"}, recursive=False) == []
 
-        def _retry_test(target_soup: bs4.BeautifulSoup) -> Optional[bs4._typing._AtMostOneElement]:
+        def _retry_test(
+            target_soup: bs4.BeautifulSoup,
+        ) -> Optional[bs4._typing._AtMostOneElement]:
             return target_soup.find("ol", {"class": "reading work index group"})
 
         history = _retry_test(soup)
@@ -112,9 +115,10 @@ class TestAccountGetHistory:
             assert isinstance(work_id, int)
 
             # Authors
-            authors = [a.get_text(strip=True) for a in
-                       (h.find_all("a", attrs={"rel": "author"}) if h else [])
-                       ]
+            authors = [
+                a.get_text(strip=True)
+                for a in (h.find_all("a", attrs={"rel": "author"}) if h else [])
+            ]
             assert isinstance(authors, list)
             for auth in authors:
                 assert isinstance(auth, str)
@@ -167,10 +171,8 @@ class TestAccountGetHistory:
                 chapter_count=chapter_count,
                 words=words,
                 visited_date=visited_date,
-                visited_num=visited_num
+                visited_num=visited_num,
             )
 
             if new not in _history:
                 _history.append(new)
-
-

@@ -44,7 +44,8 @@ class Comment(CommentAPI, BaseObjectAPI):
         """
 
         BaseObjectAPI.__init__(self)
-        CommentAPI.__init__(self=self,
+        CommentAPI.__init__(
+            self=self,
             comment_id=comment_id,
             parent=parent,
             parent_comment=parent_comment,

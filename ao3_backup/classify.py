@@ -1,3 +1,7 @@
+"""
+Tool for providing a human readable response from a status code.
+"""
+
 from __future__ import annotations
 
 RESTRICTED_MARKERS = [
@@ -12,6 +16,15 @@ UNREVEALED_MARKERS = [
 
 
 def classify_response(url: str, status_code: int, text: str, final_url: str) -> str:
+    """
+    Generate a human readable response from a status code.
+
+    :param url:
+    :param status_code:
+    :param text:
+    :param final_url:
+    :return:
+    """
     if status_code == 404:
         return "not_found"
     if "users/login" in (final_url or ""):

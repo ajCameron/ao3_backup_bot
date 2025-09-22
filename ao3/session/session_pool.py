@@ -7,11 +7,13 @@ import requests
 from session.threadsafe import ThreadSafeSessionProxy
 from ao3.requester import requester  # to install adapters/headers once
 
+
 class SessionPool:
     """
     One underlying requests.Session per AO3 username, shared across wrappers.
     Completely opaque to library users.
     """
+
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._by_user: Dict[str, ThreadSafeSessionProxy] = {}
@@ -53,6 +55,7 @@ class SessionPool:
     def drop(self, username: str) -> None:
         with self._lock:
             self._by_user.pop(username, None)
+
 
 # module-level singleton
 session_pool = SessionPool()

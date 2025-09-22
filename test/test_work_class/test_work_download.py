@@ -1,4 +1,3 @@
-
 import pytest
 
 import os
@@ -13,6 +12,7 @@ class TestDownloadAWork:
     """
     Try and download a work.
     """
+
     def test_download_unrestricted_work_guest_session(self) -> None:
         """
         Tests downloading an unrestricted work using a Guest Session.
@@ -26,7 +26,9 @@ class TestDownloadAWork:
 
         from ao3.session.api import GuestAo3Session
 
-        work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
+        work = ao3.Work(
+            workid, session=GuestAo3Session(), load_chapters=True, load=True
+        )
 
         with tempfile.TemporaryDirectory() as tmpdirname:
 
@@ -51,7 +53,9 @@ class TestDownloadAWork:
 
         from ao3.session.api import GuestAo3Session
 
-        work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
+        work = ao3.Work(
+            workid, session=GuestAo3Session(), load_chapters=True, load=True
+        )
 
         with tempfile.TemporaryDirectory() as tmpdirname:
 
@@ -79,7 +83,9 @@ class TestDownloadAWork:
 
         from ao3.session.api import GuestAo3Session
 
-        test_work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
+        test_work = ao3.Work(
+            workid, session=GuestAo3Session(), load_chapters=True, load=True
+        )
 
         try:
             test_work.download("PDF")

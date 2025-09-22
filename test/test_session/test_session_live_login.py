@@ -43,6 +43,4 @@ class TestSessionLogin:
 
         with pytest.raises(AuthException):
 
-            Ao3Session(
-                username=secrets_dict["username"], password="test_password"
-            )
+            Ao3Session(username=secrets_dict["username"], password="test_password")

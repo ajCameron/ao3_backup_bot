@@ -1,4 +1,3 @@
-
 import pytest
 
 import ao3
@@ -10,6 +9,7 @@ class TestWorkMetadata:
     """
     Try and download a work.
     """
+
     def test_work_metadata_guest_session(self) -> None:
         """
         Tetss
@@ -21,7 +21,9 @@ class TestWorkMetadata:
 
         from ao3.session.api import GuestAo3Session
 
-        work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
+        work = ao3.Work(
+            workid, session=GuestAo3Session(), load_chapters=True, load=True
+        )
 
         with pytest.raises(AuthException):
             assert get_pseud_id(work) == ""

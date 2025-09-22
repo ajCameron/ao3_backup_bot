@@ -1,4 +1,3 @@
-
 import pytest
 import requests
 from ao3.requester import Requester
@@ -53,6 +52,7 @@ class DummyAdapter(requests.adapters.HTTPAdapter):
     """
     Do not want to actually do internet IO.
     """
+
     def send(self, request, **kwargs):
         """
         Should fail on any actual call.
@@ -79,7 +79,6 @@ def test_network_exception():
     with pytest.raises(NetworkException):
         resp = r.get("https://archiveofourown.org", force_session=s)
         assert resp.raw
-
 
 
 def test_429_rate_limited(monkeypatch):

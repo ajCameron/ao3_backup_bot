@@ -1,6 +1,7 @@
 """
 Holds the base class for all AO3 objects.
 """
+
 import time
 from typing import Optional, Union, Any, Callable
 
@@ -13,11 +14,11 @@ from bs4 import BeautifulSoup
 from ao3.errors import HTTPException, RateLimitedException
 
 
-
 class BasicSessionAPI:
     """
     Very basic stub to mock the only important bit of Ao3Session for this purpose.
     """
+
     @property
     def session(self) -> Optional[requests.session]:
         """
@@ -51,13 +52,12 @@ class BaseObjectAPI:
         proxies: Optional[dict[str, str]] = None,
         set_main_url_req: bool = False,
         force_session: Optional[requests.Session] = None,
-
-        retry_test: Optional[Callable[[BeautifulSoup], Optional[bs4._typing._AtMostOneElement]]] = None,
+        retry_test: Optional[
+            Callable[[BeautifulSoup], Optional[bs4._typing._AtMostOneElement]]
+        ] = None,
         retry_count: int = 5,
         retry_interval: float = 30.0,
-
-        recur_depth: int = 0
-
+        recur_depth: int = 0,
     ) -> BeautifulSoup:
         """Helper method - equest a web page and return a BeautifulSoup object.
 
@@ -90,7 +90,9 @@ class BaseObjectAPI:
         # - We have a retry test and it's failing
         if retry_test is not None and retry_test(soup) is None:
 
-            assert isinstance(retry_count, int) and retry_count >= 1, f"Malformed retry count {retry_count = }"
+            assert (
+                isinstance(retry_count, int) and retry_count >= 1
+            ), f"Malformed retry count {retry_count = }"
 
             current_count = 0
             while current_count < retry_count:
@@ -100,7 +102,11 @@ class BaseObjectAPI:
                 req = self.get(url, proxies=proxies, force_session=force_session)
 
                 soup = BeautifulSoup(req.content, "lxml")
-                if retry_test(soup) is not None and soup.title.string != 'archiveofourown.org | 525: SSL handshake failed':
+                if (
+                    retry_test(soup) is not None
+                    and soup.title.string
+                    != "archiveofourown.org | 525: SSL handshake failed"
+                ):
                     break
 
                 time.sleep(retry_interval)
@@ -111,10 +117,12 @@ class BaseObjectAPI:
         soup = BeautifulSoup(req.content, "lxml")
 
         # Recursion can go very wrong...
-        if soup.title.string == 'archiveofourown.org | 525: SSL handshake failed':
+        if soup.title.string == "archiveofourown.org | 525: SSL handshake failed":
 
             if recur_depth > 4:
-                raise HTTPException(f"We have tried enough - {url = } cannot be retrieved.")
+                raise HTTPException(
+                    f"We have tried enough - {url = } cannot be retrieved."
+                )
 
             return self.request(
                 url=url,
@@ -124,7 +132,7 @@ class BaseObjectAPI:
                 retry_test=retry_test,
                 retry_count=retry_count,
                 retry_interval=retry_interval,
-                recur_depth= recur_depth + 1
+                recur_depth=recur_depth + 1,
             )
 
         return soup

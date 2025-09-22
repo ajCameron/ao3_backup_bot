@@ -1,4 +1,3 @@
-
 import os
 import tempfile
 import ao3
@@ -10,6 +9,7 @@ class TestWorkMetadata:
     """
     Try and download a work.
     """
+
     def test_work_metadata_guest_session(self) -> None:
         """
         Tetss
@@ -21,7 +21,9 @@ class TestWorkMetadata:
 
         from ao3.session.api import GuestAo3Session
 
-        work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
+        work = ao3.Work(
+            workid, session=GuestAo3Session(), load_chapters=True, load=True
+        )
 
         assert isinstance(work.text, str)
 
@@ -30,7 +32,6 @@ class TestWorkMetadata:
             err_str += f"\n{work._soup.title = }"
             pytest.fail(err_str)
 
-        assert len(work.text) >= 100000, f"Full text for the work was not as long as expected - {work.text = }"
-
-
-
+        assert (
+            len(work.text) >= 100000
+        ), f"Full text for the work was not as long as expected - {work.text = }"

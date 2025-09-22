@@ -1,4 +1,3 @@
-
 """
 Tests the leave kudos function under work.
 """

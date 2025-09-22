@@ -1,8 +1,6 @@
-
 """
 Tests accessing the comments of a work through it using a guest session.
 """
-
 
 import ao3
 from ao3.comments import Comment
@@ -12,6 +10,7 @@ class TestWorkGetComments:
     """
     Try and download a work.
     """
+
     def test_work_metadata_guest_session_work_with_no_comments(self) -> None:
         """
         Tests we can retrive comments with a guest session.
@@ -24,7 +23,9 @@ class TestWorkGetComments:
 
         from ao3.session.api import GuestAo3Session
 
-        work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
+        work = ao3.Work(
+            workid, session=GuestAo3Session(), load_chapters=True, load=True
+        )
 
         comments = work.get_comments()
 

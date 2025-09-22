@@ -7,7 +7,13 @@ from typing import Optional, Any
 from datetime import date
 from functools import cached_property
 
-from ao3.errors import AuthException, UnloadedException, InvalidIdException, BookmarkException, HTTPException
+from ao3.errors import (
+    AuthException,
+    UnloadedException,
+    InvalidIdException,
+    BookmarkException,
+    HTTPException,
+)
 from ao3 import threadable, utils
 from ao3.common import get_work_from_banner
 from ao3.users import User
@@ -86,9 +92,7 @@ class Series(SeriesAPI):
 
         self._soup = self.request(f"https://archiveofourown.org/series/{self.id}")
         if "Error 404" in self._soup.text:
-            raise InvalidIdException(
-                "Cannot find series - 404 when loading soup."
-            )
+            raise InvalidIdException("Cannot find series - 404 when loading soup.")
 
     @threadable.threadable
     def subscribe(self) -> None:

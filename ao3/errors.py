@@ -56,7 +56,13 @@ class NetworkException(AO3Exception):
     Something seems to have gone wrong on a network level.
     """
 
-    def __init__(self, message: str, errors: Optional[list[Exception]] = None, url: Optional[str] = None, method: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        errors: Optional[list[Exception]] = None,
+        url: Optional[str] = None,
+        method: Optional[str] = None,
+    ) -> None:
         """
         Startup the exception.
 
@@ -106,7 +112,12 @@ class RateLimitedException(HTTPException):
     Do that.
     """
 
-    def __init__(self, message: str = "", errors: Optional[list[Exception]] = None, retry_after: Optional[float] = None) -> None:
+    def __init__(
+        self,
+        message: str = "",
+        errors: Optional[list[Exception]] = None,
+        retry_after: Optional[float] = None,
+    ) -> None:
         """
         Startup the exception.
 

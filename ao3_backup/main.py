@@ -1,8 +1,6 @@
-
 """
 Main entry point for the program.
 """
-
 
 from __future__ import annotations
 
@@ -164,7 +162,7 @@ def worker_update_cmd(workers: int, parallel: int | None) -> None:
     :param parallel:
     :return:
     """
-    _spawn_workers(workers, worker_update.run, "update", parallel)
+    _spawn_workers(workers, worker_update.run_update_guest, "update", parallel)
 
 
 @cli.command("enqueue-updates")

@@ -1,4 +1,3 @@
-
 """
 Contains the API for the account class - which
 """
@@ -20,6 +19,7 @@ class AccountAPI(abc.ABC, BaseObjectAPI):
     """
     API for the account class - representing your account on AO3.
     """
+
     session: "Ao3SessionAPI"
 
     def __init__(self, session: "Ao3SessionAPI") -> None:
@@ -101,23 +101,23 @@ class AccountAPI(abc.ABC, BaseObjectAPI):
         timeout_sleep: Optional[int] = 60,
     ) -> Optional[list[list[WorkAPI, int, datetime.datetime]]]:
         """
-       Get history works.
+        Get history works.
 
-       Loads them if they haven't been previously.
+        Loads them if they haven't been previously.
 
-       Arguments:
-         hist_sleep (int to sleep between requests)
-         start_page (int for page to start on, zero-indexed)
-         max_pages  (int for page to end on, zero-indexed)
-         timeout_sleep (int, if set will attempt to recovery from http errors, likely timeouts, if set to None
-         will just attempt to load)
+        Arguments:
+          hist_sleep (int to sleep between requests)
+          start_page (int for page to start on, zero-indexed)
+          max_pages  (int for page to end on, zero-indexed)
+          timeout_sleep (int, if set will attempt to recovery from http errors, likely timeouts, if set to None
+          will just attempt to load)
 
-        takes two arguments the first hist_sleep is an int and is a sleep to run between pages of history to load to
-        avoid hitting the rate limiter, the second is an int of the maximum number of pages of history to load, by
-        default this is None so loads them all.
+         takes two arguments the first hist_sleep is an int and is a sleep to run between pages of history to load to
+         avoid hitting the rate limiter, the second is an int of the maximum number of pages of history to load, by
+         default this is None so loads them all.
 
-       Returns:
-           list: List of tuples (Work, number-of-visits, datetime-last-visited)
+        Returns:
+            list: List of tuples (Work, number-of-visits, datetime-last-visited)
         """
         raise NotImplementedError("Not supported for this session type.")
 

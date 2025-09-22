@@ -1,4 +1,3 @@
-
 import pytest
 from ao3.works import Work
 from ao3.errors import DownloadException, AuthException, UnloadedException

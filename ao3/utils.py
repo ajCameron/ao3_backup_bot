@@ -743,8 +743,6 @@ def urls_match(a: str, b: str) -> bool:
     return normalize_url(a) == normalize_url(b)
 
 
-
-
 def ao3_parse_int(text: str) -> Optional[int]:
     """
     Attempt to parse an int out of a given string.

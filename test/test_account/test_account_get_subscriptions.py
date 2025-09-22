@@ -1,9 +1,13 @@
-
 """
 Tests te get_subsriptions method under accounts.
 """
 
-from ao3.models import SubscriptionItem, WorkSubscriptionItem, SeriesSubscriptionItem, UserSubscriptionItem
+from ao3.models import (
+    SubscriptionItem,
+    WorkSubscriptionItem,
+    SeriesSubscriptionItem,
+    UserSubscriptionItem,
+)
 
 from ao3.session.api import Ao3SessionUnPooled
 from ao3.account import Account
@@ -39,7 +43,9 @@ class TestAccountGetSubscriptionsUnthreaded:
 
         test_account = Account(session=test_session)
 
-        test_account_subs = test_account.get_subscriptions(use_threading=self.use_threading)
+        test_account_subs = test_account.get_subscriptions(
+            use_threading=self.use_threading
+        )
 
         assert test_account_subs is not None
 
@@ -59,7 +65,9 @@ class TestAccountGetSubscriptionsUnthreaded:
 
         test_account = Account(session=test_session)
 
-        test_account_subs = test_account.get_subscriptions(use_threading=self.use_threading)
+        test_account_subs = test_account.get_subscriptions(
+            use_threading=self.use_threading
+        )
 
         assert test_account_subs is not None
 
@@ -97,7 +105,9 @@ class TestAccountGetSubscriptionsUnthreaded:
 
                 assert sub.href == f"/users/{sub.title}"
                 assert isinstance(sub.user, str) and sub.user
-                assert isinstance(sub.user_url, str) and sub.user_url.startswith("/users")
+                assert isinstance(sub.user_url, str) and sub.user_url.startswith(
+                    "/users"
+                )
 
             elif isinstance(sub, SeriesSubscriptionItem):
 
@@ -132,7 +142,9 @@ class TestAccountGetSubscriptionsUnthreaded:
 
         test_account = Account(session=test_session)
 
-        test_user_subs = test_account.get_user_subscriptions(use_threading=self.use_threading)
+        test_user_subs = test_account.get_user_subscriptions(
+            use_threading=self.use_threading
+        )
 
         assert test_user_subs is not None
 
@@ -155,7 +167,9 @@ class TestAccountGetSubscriptionsUnthreaded:
 
         test_account = Account(session=test_session)
 
-        test_work_subs = test_account.get_work_subscriptions(use_threading=self.use_threading)
+        test_work_subs = test_account.get_work_subscriptions(
+            use_threading=self.use_threading
+        )
 
         assert test_work_subs is not None
 
@@ -178,7 +192,9 @@ class TestAccountGetSubscriptionsUnthreaded:
 
         test_account = Account(session=test_session)
 
-        test_series_subs = test_account.get_series_subscriptions(use_threading=self.use_threading)
+        test_series_subs = test_account.get_series_subscriptions(
+            use_threading=self.use_threading
+        )
 
         assert test_series_subs is not None
 

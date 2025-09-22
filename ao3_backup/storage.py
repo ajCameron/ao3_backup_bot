@@ -6,8 +6,6 @@ from .config import STORE_ROOT
 
 
 # Todo; I think json metadata would be a good add here
-
-
 def get_work_path(ao3_id: int, ext: str) -> Path:
     """
     Generic getting function for files within the work's folder.
@@ -16,7 +14,14 @@ def get_work_path(ao3_id: int, ext: str) -> Path:
     """
     m = ao3_id // 1_000_000
     k = (ao3_id // 1_000) % 1000
-    return STORE_ROOT / "works" / f"{m:03d}" / f"{k:03d}" / f"{ao3_id:09d}" / f"{ao3_id:09d}.{ext}"
+    return (
+        STORE_ROOT
+        / "works"
+        / f"{m:03d}"
+        / f"{k:03d}"
+        / f"{ao3_id:09d}"
+        / f"{ao3_id:09d}.{ext}"
+    )
 
 
 def work_path_html(ao3_id: int) -> Path:
@@ -30,6 +35,7 @@ def work_path_html(ao3_id: int) -> Path:
     return get_work_path(ao3_id, ext)
 
 
+# Todo: This actually needs to write to cache, and then copy into storage
 def write_html_gz(ao3_id: int, html: str) -> tuple[int, str]:
     """
     Write the given html out to storage.

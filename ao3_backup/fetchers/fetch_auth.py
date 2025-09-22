@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import time
 
-from typing import Tuple, Optional
-
 from ao3.errors import RateLimitedException
 from ao3_backup.utils import get_work_url
 from ao3_backup.creds import CredentialManager
@@ -32,7 +30,7 @@ def fetch_with_auth(ao3_id: int, cred_manager: CredentialManager) -> FetchResult
             ao3_id=ao3_id,
             authed=True,
             outcome="error",
-            status_code=0,
+            http_status_code=0,
             html="",
             final_url=url,
             err="no-available-credentials",
@@ -64,7 +62,7 @@ def fetch_with_auth(ao3_id: int, cred_manager: CredentialManager) -> FetchResult
             ao3_id=ao3_id,
             authed=True,
             outcome=outcome,
-            status_code=resp.status_code,
+            http_status_code=resp.status_code,
             html=resp.text,
             final_url=resp.url,
             err=None,
@@ -80,7 +78,7 @@ def fetch_with_auth(ao3_id: int, cred_manager: CredentialManager) -> FetchResult
             ao3_id=ao3_id,
             authed=True,
             outcome="error",
-            status_code=429,
+            http_status_code=429,
             html="",
             final_url=url,
             err="rate-limited",

@@ -1,8 +1,6 @@
-
 """
 Tests the errors API.
 """
-
 
 import ao3
 from ao3 import errors as errs
@@ -15,11 +13,21 @@ def test_exception_hierarchy():
     :return:
     """
     for cls_name in [
-        "AO3Exception","LoginException","UnloadedException","NetworkException",
-        "UnexpectedResponseException","HTTPException","RateLimitedException",
-        "InvalidIdException","WorkNotFoundException","DownloadException",
-        "AuthException","DuplicateCommentException","PseudException",
-        "BookmarkException","CollectException",
+        "AO3Exception",
+        "LoginException",
+        "UnloadedException",
+        "NetworkException",
+        "UnexpectedResponseException",
+        "HTTPException",
+        "RateLimitedException",
+        "InvalidIdException",
+        "WorkNotFoundException",
+        "DownloadException",
+        "AuthException",
+        "DuplicateCommentException",
+        "PseudException",
+        "BookmarkException",
+        "CollectException",
     ]:
         cls = getattr(errs, cls_name)
         assert issubclass(cls, errs.AO3Exception)

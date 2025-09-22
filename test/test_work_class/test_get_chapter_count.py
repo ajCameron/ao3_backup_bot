@@ -24,11 +24,15 @@ class TestGetChapterCount:
 
         from ao3.session.api import GuestAo3Session
 
-        work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
+        work = ao3.Work(
+            workid, session=GuestAo3Session(), load_chapters=True, load=True
+        )
 
         assert work.restricted is True, "This work should be restricted."
 
-        assert work._soup.find_all("dd") is not None, "Even on the login page, there should be some."
+        assert (
+            work._soup.find_all("dd") is not None
+        ), "Even on the login page, there should be some."
 
         with pytest.raises(AuthException):
             # This doesn't seem right
@@ -48,13 +52,15 @@ class TestGetChapterCount:
 
         from ao3.session.api import GuestAo3Session
 
-        work = ao3.Work(workid, session=GuestAo3Session(), load_chapters=True, load=True)
+        work = ao3.Work(
+            workid, session=GuestAo3Session(), load_chapters=True, load=True
+        )
 
         # It's age restricted, but not restricted... Not sure if this is a problem
         assert work.restricted is False, "This work should NOT be restricted."
 
-        assert work._soup.find_all("dd") is not None, "Even on the login page, there should be some."
+        assert (
+            work._soup.find_all("dd") is not None
+        ), "Even on the login page, there should be some."
 
         assert work.nchapters == 3, f"Unexpected chapters count - {work.nchapters}"
-
-

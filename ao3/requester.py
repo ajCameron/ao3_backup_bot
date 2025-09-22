@@ -100,10 +100,8 @@ class Requester:
         timeout: Optional[tuple[float, float] | float] = None,
         proxies: Optional[Mapping[str, str]] = None,
         force_session: Optional[requests.Session] = None,
-
         manual_retry: Optional[int] = 10,
         manual_retry_delay: Optional[float] = 10.0,
-
     ) -> requests.Response:
         """
         Finally request the actual page.
@@ -186,7 +184,9 @@ class Requester:
                 if resp is not None and resp.status_code == 525:
 
                     try:
-                        retry_after = float(_parse_retry_after(resp.headers.get("Retry-After")))
+                        retry_after = float(
+                            _parse_retry_after(resp.headers.get("Retry-After"))
+                        )
                     except (TypeError, ValueError):
                         retry_after = 256.0
 
@@ -200,7 +200,9 @@ class Requester:
                 if resp is not None and resp.status_code == 429:
 
                     try:
-                        retry_after = float(_parse_retry_after(resp.headers.get("Retry-After")))
+                        retry_after = float(
+                            _parse_retry_after(resp.headers.get("Retry-After"))
+                        )
                     except (TypeError, ValueError):
                         retry_after = 512.0
 
@@ -218,7 +220,9 @@ class Requester:
                 time.sleep(manual_retry_delay)
 
             if resp is None:
-                raise NetworkException(f"Some kinda logic foul up when trying to retry - {url = } - {try_count = } - {sess = }")
+                raise NetworkException(
+                    f"Some kinda logic foul up when trying to retry - {url = } - {try_count = } - {sess = }"
+                )
 
         if resp.status_code == 429:
             retry_after = _parse_retry_after(resp.headers.get("Retry-After"))
@@ -288,7 +292,9 @@ class Requester:
         elapsed = now - self._last
         self._last = now
 
-        self._tokens = min(self._capacity, self._tokens + elapsed * (self._capacity / self._window))
+        self._tokens = min(
+            self._capacity, self._tokens + elapsed * (self._capacity / self._window)
+        )
         if self._tokens < 1:
             sleep_for = (1 - self._tokens) * (self._window / self._capacity)
             time.sleep(sleep_for)

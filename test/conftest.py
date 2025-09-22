@@ -1,8 +1,8 @@
-
 import os
 import json
 import pytest
 import requests
+
 
 @pytest.fixture(scope="session")
 def secrets():
@@ -11,6 +11,7 @@ def secrets():
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     return None
+
 
 @pytest.fixture()
 def session_obj():

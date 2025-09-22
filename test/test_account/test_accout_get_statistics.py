@@ -1,9 +1,13 @@
-
 """
 Tests te get_subsriptions method under accounts.
 """
 
-from ao3.models import SubscriptionItem, WorkSubscriptionItem, SeriesSubscriptionItem, UserSubscriptionItem
+from ao3.models import (
+    SubscriptionItem,
+    WorkSubscriptionItem,
+    SeriesSubscriptionItem,
+    UserSubscriptionItem,
+)
 
 from ao3.session.api import Ao3SessionUnPooled
 from ao3.account import Account
@@ -20,6 +24,7 @@ class TestAccountGetStatistics:
     Or it could just be taking a really long time.
     Note - for these tests to work you need to prepare your account with subscriptions to works, user, series.
     """
+
     def test_get_statistics(self) -> None:
         """
         Tests the get_statistics method runs without error.

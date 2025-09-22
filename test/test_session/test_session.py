@@ -1,4 +1,3 @@
-
 """
 Debugging the auth flow from session.
 """
@@ -125,7 +124,7 @@ class TestSessionLogin:
 
         assert soup.status_code == 200
 
-        assert soup.find("input")["name"] == 'authenticity_token'
+        assert soup.find("input")["name"] == "authenticity_token"
 
         authenticity_token = soup.find("input")["value"]
 
@@ -140,14 +139,16 @@ class TestSessionLogin:
         login_post_resp = self.post(
             "https://archiveofourown.org/users/login",
             params=payload,
-            allow_redirects=False, force_session=session
+            allow_redirects=False,
+            force_session=session,
         )
 
         if login_post_resp.status_code == 302:
             login_post_resp = self.post(
                 "https://archiveofourown.org/users/login",
                 params=payload,
-                allow_redirects=True, force_session=session
+                allow_redirects=True,
+                force_session=session,
             )
 
         assert login_post_resp.status_code == 200
@@ -171,7 +172,7 @@ class TestSessionLogin:
         # --- Extract the title ---
         title = soup.title.string if soup.title else None
 
-        assert title == 'thomaswpaine | Archive of Our Own'
+        assert title == "thomaswpaine | Archive of Our Own"
 
     # def test_basic_flow_valid_username_and_bad_password_direct_session(self) -> None:
     #     """
@@ -275,12 +276,13 @@ class TestSessionLogin:
     #     assert len(login_post.history) == 1
     #     assert login_post.history[0].status_code == 302
 
-    def request(self,
-                url: str,
-                proxies: Optional[dict[str, str]] = None,
-                set_main_url_req: bool = False,
-                force_session: Optional[Union[requests.Session, Requester]] = None
-                ) -> BeautifulSoup:
+    def request(
+        self,
+        url: str,
+        proxies: Optional[dict[str, str]] = None,
+        set_main_url_req: bool = False,
+        force_session: Optional[Union[requests.Session, Requester]] = None,
+    ) -> BeautifulSoup:
         """Request a web page and return a BeautifulSoup object.
 
         Args:
@@ -312,7 +314,7 @@ class TestSessionLogin:
         proxies: Optional[dict[str, str]] = None,
         allow_redirects: bool = True,
         timeout: Optional[Union[float, tuple[float, float]]] = None,
-        force_session: Optional[requests.Session] = None
+        force_session: Optional[requests.Session] = None,
     ) -> requests.Response:
         """
         Request a web page and return a Response object.
@@ -325,7 +327,11 @@ class TestSessionLogin:
 
             if self._session is None:
                 req = requester.request(
-                    method="get", url=url, allow_redirects=allow_redirects, timeout=timeout, proxies=proxies
+                    method="get",
+                    url=url,
+                    allow_redirects=allow_redirects,
+                    timeout=timeout,
+                    proxies=proxies,
                 )
             else:
                 req = requester.request(
@@ -334,7 +340,7 @@ class TestSessionLogin:
                     allow_redirects=allow_redirects,
                     force_session=self._session.session,
                     timeout=timeout,
-                    proxies=proxies
+                    proxies=proxies,
                 )
 
         else:
@@ -345,7 +351,7 @@ class TestSessionLogin:
                 allow_redirects=allow_redirects,
                 force_session=force_session,
                 timeout=timeout,
-                proxies=proxies
+                proxies=proxies,
             )
 
         from ao3 import utils
@@ -369,7 +375,7 @@ class TestSessionLogin:
         allow_redirects: bool = False,
         headers: Optional[dict[str, str]] = None,
         data: Optional[dict[str, str]] = None,
-        force_session: Optional[requests.Session] = None
+        force_session: Optional[requests.Session] = None,
     ):
         """Make a post request with the current session
 
@@ -393,7 +399,6 @@ class TestSessionLogin:
                 headers=headers,
                 data=data,
             )
-
 
         from ao3 import utils
 
